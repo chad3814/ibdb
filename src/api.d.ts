@@ -1,28 +1,28 @@
 export type ApiBook = {
     id: string;
-    createAt: number|Date;
+    createdAt: number|Date;
     updatedAt: number|Date;
     title: string;
     isbn13: string;
     authors: ApiAuthor[];
     longTitle?: string|null;
-    description?: string|null;
     synopsis?: string|null;
     publicationDate?: string|null;
-    images: ApiImage[];
+    publisher?: string|null;
+    binding: 'Unknown'|'Hardcover'|'Paperback'|'Ebook'|'Audiobook';
+    image?: ApiImage|null;
 }
 
 export type ApiAuthor = {
     id: string;
-    createAt: number|Date;
+    createdAt: number|Date;
     updatedAt: number|Date;
     name: string;
-    akas: string[];
 }
 
 export type ApiImage = {
     id: string;
-    createAt: number|Date;
+    createdAt: number|Date;
     updatedAt: number|Date;
     url: string;
     width: number;

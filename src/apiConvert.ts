@@ -1,9 +1,10 @@
 import { ApiAuthor, ApiBook, ApiImage } from "./api";
+import { Image, Author, Book, Binding } from "./server/db";
 
 export function getApiImage(image: Image): ApiImage {
     return {
         id: image.id,
-        createAt: image.createAt.getTime(),
+        createdAt: image.createdAt.getTime(),
         updatedAt: image.updatedAt.getTime(),
         url: image.url,
         width: image.width,
@@ -14,27 +15,47 @@ export function getApiImage(image: Image): ApiImage {
 export function getApiAuthor(author: Author): ApiAuthor {
     return {
         id: author.id,
-        createAt: author.createAt.getTime(),
+        createdAt: author.createdAt.getTime(),
         updatedAt: author.updatedAt.getTime(),
         name: author.name,
-        akas: author.akas.slice(),
     };
 }
 
-export function getApiBook(book: Book): ApiBook {
+export type FullBook = Book & { authors: Author[] } & { image?: Image | null };
+
+export function getApiBook(book: FullBook): ApiBook {
     const authors = book.authors.map(a => getApiAuthor(a));
-    const images = book.images.map(i => getApiImage(i));
+    let image: ApiImage|undefined;
+    if (book.image) {
+        image = getApiImage(book.image);
+    }
+    let binding: 'Unknown'|'Hardcover'|'Paperback'|'Ebook'|'Audiobook' = 'Unknown';
+    switch (book.binding) {
+        case Binding.Audiobook:
+            binding = 'Audiobook';
+            break;
+        case Binding.Ebook:
+            binding = 'Ebook';
+            break;
+        case Binding.Hardcover:
+            binding = 'Hardcover';
+            break;
+        case Binding.Paperback:
+            binding = 'Paperback';
+            break;
+    }
     return {
         id: book.id,
-        createAt: book.createAt.getTime(),
+        createdAt: book.createdAt.getTime(),
         updatedAt: book.updatedAt.getTime(),
         title: book.title,
         isbn13: book.isbn13,
         authors,
         longTitle: book.longTitle,
-        description: book.description,
         synopsis: book.synopsis,
         publicationDate: book.publicationDate,
-        images,
+        publisher: book.publisher,
+        binding,
+        image,
     };
 }

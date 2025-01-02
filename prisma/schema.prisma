@@ -14,19 +14,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Binding {
+  Unknown
+  Paperback
+  Hardcover
+  Ebook
+  Audiobook
+}
+
 model Book {
   id String @id @default(uuid())
-  createAt DateTime @default(now())
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   title String
   isbn13 String
   authors Author[]
   longTitle String?
-  description String?
   synopsis String?
   publicationDate String?
-  images Image[]
-
+  publisher String?
+  binding Binding @default(Unknown)
+  image Image? @relation(references: [id], fields: [imageId])
+  imageId String?
   @@index([title])
 }
 
@@ -35,8 +44,9 @@ model Author {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   name String
-  akas String[]
   books Book[]
+
+  @@unique([name])
 }
 
 model Image {
@@ -47,4 +57,6 @@ model Image {
   width Int
   height Int
   books Book[]
+
+  @@unique([url])
 }
