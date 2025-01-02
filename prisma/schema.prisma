@@ -36,6 +36,8 @@ model Book {
   binding Binding @default(Unknown)
   image Image? @relation(references: [id], fields: [imageId])
   imageId String?
+
+  queries BookQuery[]
   @@index([title])
 }
 
@@ -59,4 +61,14 @@ model Image {
   books Book[]
 
   @@unique([url])
+}
+
+model BookQuery {
+  id String @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  query String
+  books Book[]
+
+  @@unique([query])
 }

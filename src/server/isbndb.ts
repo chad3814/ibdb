@@ -165,5 +165,28 @@ export async function search(q: string): Promise<ApiBook[]> {
         books.push(getApiBook(book));
     }
 
+    for (const book of books) {
+        await db.bookQuery.upsert({
+            where: {
+                query: q
+            },
+            create: {
+                query: q,
+                books: {
+                    connect: {
+                        id: book.id
+                    }
+                }
+            },
+            update: {
+                books: {
+                    connect: {
+                        id: book.id
+                    }
+                }
+            }
+        });
+    }
+
     return books;
 }
