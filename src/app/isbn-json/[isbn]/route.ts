@@ -40,3 +40,5 @@ export async function GET(req: NextRequest): Promise<NextResponse<IsbnResponse>>
         message: `no book with isbn "${isbn}" found`,
     }, {status: 404});
 }
+
+export const dynamic = 'force-static';
