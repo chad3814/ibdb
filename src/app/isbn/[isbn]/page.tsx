@@ -3,15 +3,15 @@ import { db } from "@/server/db";
 
 type Props = {
     params: Promise<{
-        id: string;
+        isbn: string;
     }>;
 };
 
-export default async function BookPage({ params }: Props) {
+export default async function Isbn({ params }: Props) {
     const p = await params;
     const book = await db.book.findFirst({
         where: {
-            id: p.id,
+            isbn13: p.isbn,
         },
         include: {
             authors: true,

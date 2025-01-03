@@ -1,6 +1,6 @@
 import { ApiBook } from "@/api";
 import { db, Author, Binding, Image as DbImage } from "./db";
-import { getApiBook } from "@/apiConvert";
+import { FullBook, getApiBook } from "@/apiConvert";
 import sizeOf from 'image-size';
 
 type IsbnDbSearchBook = {
@@ -25,6 +25,10 @@ type IsbnDbSearchRes = {
     books: IsbnDbSearchBook[];
 }
 
+type IsbnDbIsbnLookupRes = {
+    book: IsbnDbSearchBook;
+}
+
 async function imageHelper(url: string): Promise<[number, number]> {
     const res = await fetch(url);
     if (!res.ok) {
@@ -33,6 +37,111 @@ async function imageHelper(url: string): Promise<[number, number]> {
 
     const size = sizeOf(new Uint8Array(await res.arrayBuffer()));
     return [size.width!, size.height!];
+}
+
+async function saveIsbndbBook(isbnBook: IsbnDbSearchBook): Promise<FullBook> {
+    const book = await db.$transaction(
+        async $tx => {
+            const b = await $tx.book.findFirst({
+                where: {
+                    isbn13: isbnBook.isbn13
+                },
+                include: {
+                    authors: true,
+                    image: true,
+                }
+            });
+
+            if (b) {
+                return b;
+            }
+
+            let binding: Binding = Binding.Unknown;
+            const isbnBinding = isbnBook.binding?.toLowerCase();
+            if (isbnBinding?.includes('paperback')) {
+                binding = Binding.Paperback;
+            } else if (isbnBinding === 'hardcover') {
+                binding = Binding.Hardcover;
+            } else if (isbnBinding?.includes('kindle') || isbnBinding === 'epub') {
+                binding = Binding.Ebook;
+            } else if (isbnBinding?.includes('audio') || isbnBinding?.includes('mp3')) {
+                binding = Binding.Audiobook;
+            }
+
+            const newBook = await $tx.book.create({
+                data: {
+                    title: isbnBook.title,
+                    isbn13: isbnBook.isbn13,
+                    longTitle: isbnBook.title_long,
+                    synopsis: isbnBook.synopsis,
+                    publicationDate: String(isbnBook.date_published),
+                    publisher: isbnBook.publisher,
+                    binding,
+                }
+            });
+
+            const authors: Author[] = [];
+            if (isbnBook.authors) {
+                for (const name of isbnBook.authors) {
+                    const author = await $tx.author.upsert({
+                        where: {
+                            name,
+                        },
+                        create: {
+                            name,
+                            books: {
+                                connect: {
+                                    id: newBook.id
+                                }
+                            }
+                        },
+                        update: {
+                            books: {
+                                connect: {
+                                    id: newBook.id
+                                }
+                            }
+                        },
+                    });
+                    authors.push(author);
+                }
+            }
+
+            let image: DbImage|null = null;
+            if (isbnBook.image) {
+                try {
+                    const [width, height] = await imageHelper(isbnBook.image);
+                    image = await $tx.image.upsert({
+                        where: {
+                            url: isbnBook.image,
+                        },
+                        create: {
+                            url: isbnBook.image,
+                            width: width,
+                            height: height,
+                            books: {
+                                connect: {
+                                    id: newBook.id
+                                }
+                            }
+                        },
+                        update: {
+                            books: {
+                                connect: {
+                                    id: newBook.id
+                                }
+                            }
+                        }
+                    })
+                } catch(err) {
+                    console.log('failed to get iamge', err);
+                }
+            }
+
+            return Object.assign(newBook, {authors}, {image})
+        }
+    );
+    return book;
 }
 
 export async function search(q: string): Promise<ApiBook[]> {
@@ -61,107 +170,7 @@ export async function search(q: string): Promise<ApiBook[]> {
 
     const books: ApiBook[] = []
     for (const isbnBook of isbndbBooks.books) {
-        const book = await db.$transaction(
-            async $tx => {
-                const b = await $tx.book.findFirst({
-                    where: {
-                        isbn13: isbnBook.isbn13
-                    },
-                    include: {
-                        authors: true,
-                        image: true,
-                    }
-                });
-
-                if (b) {
-                    return b;
-                }
-
-                let binding: Binding = Binding.Unknown;
-                const isbnBinding = isbnBook.binding?.toLowerCase();
-                if (isbnBinding?.includes('paperback')) {
-                    binding = Binding.Paperback;
-                } else if (isbnBinding === 'hardcover') {
-                    binding = Binding.Hardcover;
-                } else if (isbnBinding?.includes('kindle') || isbnBinding === 'epub') {
-                    binding = Binding.Ebook;
-                } else if (isbnBinding?.includes('audio') || isbnBinding?.includes('mp3')) {
-                    binding = Binding.Audiobook;
-                }
-
-                const newBook = await $tx.book.create({
-                    data: {
-                        title: isbnBook.title,
-                        isbn13: isbnBook.isbn13,
-                        longTitle: isbnBook.title_long,
-                        synopsis: isbnBook.synopsis,
-                        publicationDate: String(isbnBook.date_published),
-                        publisher: isbnBook.publisher,
-                        binding,
-                    }
-                });
-
-                const authors: Author[] = [];
-                if (isbnBook.authors) {
-                    for (const name of isbnBook.authors) {
-                        const author = await $tx.author.upsert({
-                            where: {
-                                name,
-                            },
-                            create: {
-                                name,
-                                books: {
-                                    connect: {
-                                        id: newBook.id
-                                    }
-                                }
-                            },
-                            update: {
-                                books: {
-                                    connect: {
-                                        id: newBook.id
-                                    }
-                                }
-                            },
-                        });
-                        authors.push(author);
-                    }
-                }
-
-                let image: DbImage|null = null;
-                if (isbnBook.image) {
-                    try {
-                        const [width, height] = await imageHelper(isbnBook.image);
-                        image = await $tx.image.upsert({
-                            where: {
-                                url: isbnBook.image,
-                            },
-                            create: {
-                                url: isbnBook.image,
-                                width: width,
-                                height: height,
-                                books: {
-                                    connect: {
-                                        id: newBook.id
-                                    }
-                                }
-                            },
-                            update: {
-                                books: {
-                                    connect: {
-                                        id: newBook.id
-                                    }
-                                }
-                            }
-                        })
-                    } catch(err) {
-                        console.log('failed to get iamge', err);
-                    }
-                }
-
-                return Object.assign(newBook, {authors}, {image})
-            }
-        );
+        const book = await saveIsbndbBook(isbnBook);
         books.push(getApiBook(book));
     }
 
@@ -189,4 +198,43 @@ export async function search(q: string): Promise<ApiBook[]> {
     }
 
     return books;
+}
+
+export async function lookupByIsbn13(isbn13: string): Promise<FullBook> {
+    const b = await db.book.findFirst({
+        where: {
+            isbn13,
+        },
+        include: {
+            authors: true,
+            image: true,
+        }
+    });
+
+    if (b) {
+        return b;
+    }
+
+    if (!process.env.ISBNDB_KEY) {
+        throw new Error('Missing ISBNDB Key');
+    }
+    const headers = new Headers();
+    headers.set('Authorization', process.env.ISBNDB_KEY);
+    const url = new URL(`https://api2.isbndb.com/books/${encodeURIComponent(isbn13)}`);
+    const options: RequestInit = {
+        headers,
+    };
+
+    const res = await fetch(url, options);
+    if (!res.ok) {
+        console.error(`failed to lookup isbn ISBNDb ${url}, ${res.status} - ${res.statusText}`);
+        throw new Error('ISBNDb Error');
+    }
+    const isbnBook = await res.json() as IsbnDbIsbnLookupRes;
+    if (!isbnBook) {
+        throw new Error('failed to get json');
+    }
+
+    const book = await saveIsbndbBook(isbnBook.book);
+    return book;
 }
