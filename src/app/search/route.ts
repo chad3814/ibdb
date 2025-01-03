@@ -66,5 +66,3 @@ export async function GET(req: NextRequest): Promise<NextResponse<SearchResult>>
         }, {status: 501});
     }
 }
-
-export const dynamic = 'force-static';
