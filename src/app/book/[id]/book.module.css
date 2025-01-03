@@ -1,0 +1,49 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    padding: 2em;
+    background-color: blanchedalmond;
+    color: black;
+    width: min-content;
+}
+
+.container h2 {
+    text-wrap: nowrap;
+}
+
+.book {
+    display: flex;
+    flex-direction: row;
+}
+
+.info {
+    display: flex;
+    flex-direction: column;
+    padding-left: 1em;
+}
+
+.byLine {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    font-weight: bolder;
+}
+
+.isbn {
+    margin-top: 1em;
+    font-size: x-small;
+    text-align: right;
+}
+
+.synopsis {
+    overflow: hidden;
+    text-overflow: ellipsis ellipsis;
+    text-wrap: pretty;
+    margin-top: 0.5em;
+}
+
+.binding {
+    display: inline-block;
+    color: lightgrey;
+    margin-left: 1em;
+}
