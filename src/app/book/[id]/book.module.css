@@ -5,6 +5,7 @@
     background-color: blanchedalmond;
     color: black;
     width: min-content;
+    max-width: 50%;
 }
 
 .container h2 {
@@ -20,7 +21,6 @@
     display: flex;
     flex-direction: column;
     padding-left: 1em;
-    text-wrap: nowrap;
 }
 
 .byLine {
@@ -28,6 +28,8 @@
     flex-direction: row;
     justify-content: space-between;
     font-weight: bolder;
+    text-wrap: nowrap;
+    align-items: baseline;
 }
 
 .isbn {
@@ -37,18 +39,22 @@
 }
 
 .synopsis {
-    overflow: hidden;
-    text-overflow: ellipsis ellipsis;
-    text-wrap: pretty;
     margin-top: 0.5em;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    overflow: hidden;
 }
 
 .binding {
     display: inline-block;
-    color: lightgrey;
+    color: darkgrey;
     margin-left: 1em;
 }
 
 .publisher {
     font-size: x-small;
+    vertical-align: bottom;
+    padding-left: 1em;
 }
