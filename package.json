@@ -1,7 +1,8 @@
 {
   "name": "ibdb",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
+  "license": "MIT",
   "scripts": {
     "dev": "next dev --turbopack",
     "start": "next start",
