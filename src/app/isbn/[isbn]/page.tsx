@@ -1,5 +1,6 @@
+import { getApiBook } from "@/apiConvert";
 import Book from "@/app/book";
-import { db } from "@/server/db";
+import { lookupByIsbn13 } from "@/server/isbndb";
 
 type Props = {
     params: Promise<{
@@ -9,20 +10,12 @@ type Props = {
 
 export default async function Isbn({ params }: Props) {
     const p = await params;
-    const book = await db.book.findFirst({
-        where: {
-            isbn13: p.isbn,
-        },
-        include: {
-            authors: true,
-            image: true,
-        }
-    });
+    const fullBook = await lookupByIsbn13(p.isbn);
 
-    if (!book) {
+    if (!fullBook) {
         return <div>Book not found</div>;
     }
 
     //const imageWidth =
-    return <Book book={book}/>;
+    return <Book book={getApiBook(fullBook)}/>;
 }

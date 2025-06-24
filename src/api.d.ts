@@ -9,15 +9,39 @@ export type ApiBook = {
     synopsis?: string|null;
     publicationDate?: string|null;
     publisher?: string|null;
-    binding: 'Unknown'|'Hardcover'|'Paperback'|'Ebook'|'Audiobook';
+    binding: ApiBinding;
+    editions: ApiEdition[];
     image?: ApiImage|null;
+    openLibraryId?: string|null;
+    goodReadsId?: string|null;
+    hardcoverId?: number|null;
 }
+
+export type ApiEdition = {
+    id: string;
+    createdAt: number|Date;
+    updatedAt: number|Date;
+    bookId: string;
+    editionName?: string|null;
+    isbn13: string;
+    publicationDate?: string|null;
+    publisher?: string|null;
+    binding: ApiBinding;
+    openLibraryId?: string|null;
+    goodReadsId?: string|null;
+    hardcoverId?: number|null;
+}
+
+export type ApiBinding = 'Unknown'|'Hardcover'|'Paperback'|'Ebook'|'Audiobook';
 
 export type ApiAuthor = {
     id: string;
     createdAt: number|Date;
     updatedAt: number|Date;
     name: string;
+    openLibraryId?: string|null;
+    goodReadsId?: string|null;
+    hardcoverId?: number|null;
 }
 
 export type ApiImage = {

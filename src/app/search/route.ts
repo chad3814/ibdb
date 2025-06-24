@@ -40,7 +40,11 @@ export async function GET(req: NextRequest): Promise<NextResponse<SearchResult>>
             books: {
                 include: {
                     authors: true,
-                    image: true,
+                    editions: {
+                        include: {
+                            image: true
+                        }
+                    }
                 }
             }
         }

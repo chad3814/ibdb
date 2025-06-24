@@ -1,3 +1,4 @@
+import { getApiBook } from "@/apiConvert";
 import Book from "@/app/book";
 import { db } from "@/server/db";
 
@@ -9,20 +10,24 @@ type Props = {
 
 export default async function BookPage({ params }: Props) {
     const p = await params;
-    const book = await db.book.findFirst({
+    const fullBook = await db.book.findFirst({
         where: {
             id: p.id,
         },
         include: {
             authors: true,
-            image: true,
+            editions: {
+                include: {
+                    image: true,
+                },
+            },
         }
     });
 
-    if (!book) {
+    if (!fullBook) {
         return <div>Book not found</div>;
     }
 
     //const imageWidth =
-    return <Book book={book}/>;
+    return <Book book={getApiBook(fullBook)}/>;
 }
