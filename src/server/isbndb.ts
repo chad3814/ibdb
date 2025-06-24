@@ -2,7 +2,7 @@ import { ApiBook } from "@/api";
 import { db, Author, Binding, Image as DbImage } from "./db";
 import { FullBook, getApiBook } from "@/apiConvert";
 import sizeOf from 'image-size';
-import { Book, Edition, Prisma } from "../../prisma/client";
+import { Book, Edition } from "../../prisma/client";
 
 type IsbnDbSearchBook = {
     title: string;
