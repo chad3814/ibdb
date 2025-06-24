@@ -2,6 +2,7 @@ import { ApiBook } from "@/api";
 import { db, Author, Binding, Image as DbImage } from "./db";
 import { FullBook, getApiBook } from "@/apiConvert";
 import sizeOf from 'image-size';
+import { Book, Edition } from "../../prisma/client";
 
 type IsbnDbSearchBook = {
     title: string;
@@ -44,18 +45,29 @@ async function saveIsbndbBook(isbnBook: IsbnDbSearchBook): Promise<FullBook> {
         async $tx => {
             const b = await $tx.book.findFirst({
                 where: {
-                    isbn13: isbnBook.isbn13
+                    editions: {
+                        some: {
+                            isbn13: isbnBook.isbn13
+                        }
+                    }
                 },
                 include: {
                     authors: true,
-                    image: true,
+                    editions: {
+                        include: {
+                            image: true,
+                        },
+                    },
                 }
             });
 
             if (b) {
-                return b;
+                return Object.assign(b, {
+                    image: b.editions[0].image ?? null,
+                });
             }
 
+            // need to create at least an edition
             let binding: Binding = Binding.Unknown;
             const isbnBinding = isbnBook.binding?.toLowerCase();
             if (isbnBinding?.includes('paperback')) {
@@ -68,18 +80,79 @@ async function saveIsbndbBook(isbnBook: IsbnDbSearchBook): Promise<FullBook> {
                 binding = Binding.Audiobook;
             }
 
-            const newBook = await $tx.book.create({
-                data: {
+            const existingBook = await $tx.book.findFirst({
+                where: {
                     title: isbnBook.title,
-                    isbn13: isbnBook.isbn13,
-                    longTitle: isbnBook.title_long,
-                    synopsis: isbnBook.synopsis,
-                    publicationDate: String(isbnBook.date_published),
-                    publisher: isbnBook.publisher,
-                    binding,
+                    authors: {
+                        some: {
+                            name: {
+                                in: isbnBook.authors,
+                            }
+                        }
+                    }
+                },
+                include: {
+                    editions: true,
                 }
             });
 
+            let newEdition: Edition|null = null;
+            let newBook: (Book&{editions: Edition[]})|null = null;
+            if (existingBook) {
+                // book exists, just create a new edition
+                newBook = existingBook;
+                newEdition = await $tx.edition.create({
+                    data: {
+                        isbn13: isbnBook.isbn13,
+                        binding,
+                        publicationDate: String(isbnBook.date_published),
+                        publisher: isbnBook.publisher,
+                        bookId: existingBook.id,
+                    }
+                });
+                if (!newEdition) {
+                    throw new Error('failed to create edition');
+                }
+                await $tx.book.update({
+                    where: {
+                        id: existingBook.id,
+                    },
+                    data: {
+                        updatedAt: new Date(),
+                    }
+                });
+                newBook.editions.push(newEdition);
+            } else {
+                // no existing book, create a new one
+                newBook = await $tx.book.create({
+                    data: {
+                        title: isbnBook.title,
+                        longTitle: isbnBook.title_long,
+                        synopsis: isbnBook.synopsis,
+                        editions: {
+                            create: {
+                                isbn13: isbnBook.isbn13,
+                                binding,
+                                publicationDate: String(isbnBook.date_published),
+                                publisher: isbnBook.publisher,
+                            }
+                        }
+                    },
+                    include: {
+                        editions: true,
+                    }
+                });
+
+                if (!newBook) {
+                    throw new Error('failed to create book');
+                }
+                newEdition = newBook.editions[0];
+                if (!newEdition) {
+                    throw new Error('failed to create edition');
+                }
+            }
+
+            // update authors if needed
             const authors: Author[] = [];
             if (isbnBook.authors) {
                 for (const name of isbnBook.authors) {
@@ -119,16 +192,16 @@ async function saveIsbndbBook(isbnBook: IsbnDbSearchBook): Promise<FullBook> {
                             url: isbnBook.image,
                             width: width,
                             height: height,
-                            books: {
+                            editions: {
                                 connect: {
-                                    id: newBook.id
+                                    id: newEdition.id
                                 }
                             }
                         },
                         update: {
-                            books: {
+                            editions: {
                                 connect: {
-                                    id: newBook.id
+                                    id: newEdition.id
                                 }
                             }
                         }
@@ -201,18 +274,33 @@ export async function search(q: string): Promise<ApiBook[]> {
 }
 
 export async function lookupByIsbn13(isbn13: string): Promise<FullBook> {
-    const b = await db.book.findFirst({
+    const edition = await db.edition.findFirst({
         where: {
             isbn13,
         },
         include: {
-            authors: true,
+            book: {
+                include: {
+                    authors: true,
+                    editions: {
+                        include: {
+                            image: true,
+                        },
+                    },
+                }
+            },
             image: true,
         }
     });
 
-    if (b) {
-        return b;
+    if (edition) {
+        const book = edition.book;
+        return Object.assign(book, {
+            image: edition.image ?? book.editions[0].image ?? null,
+            publicationDate: edition.publicationDate ?? null,
+            publisher: edition.publisher ?? null,
+            binding: edition.binding as Binding,
+        });
     }
 
     if (!process.env.ISBNDB_KEY) {

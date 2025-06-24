@@ -6,7 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  output = "./client"
+  output   = "./client"
 }
 
 datasource db {
@@ -23,52 +23,74 @@ enum Binding {
 }
 
 model Book {
-  id String @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  title String
-  isbn13 String
-  authors Author[]
-  longTitle String?
-  synopsis String?
-  publicationDate String?
-  publisher String?
-  binding Binding @default(Unknown)
-  image Image? @relation(references: [id], fields: [imageId])
-  imageId String?
+  id            String    @id @default(uuid())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  title         String
+  authors       Author[]
+  longTitle     String?
+  synopsis      String?
+  openLibraryId String?   @unique
+  goodReadsId   String?   @unique
+  hardcoverId   Int?      @unique
+  editions      Edition[]
 
   queries BookQuery[]
   @@index([title])
 }
 
+model Edition {
+  id              String   @id @default(uuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  book            Book     @relation(references: [id], fields: [bookId])
+  bookId          String
+  editionName     String?
+  isbn13          String   @unique
+  publicationDate String?
+  publisher       String?
+  binding         Binding  @default(Unknown)
+  image           Image?   @relation(references: [id], fields: [imageId])
+  imageId         String?
+  openLibraryId   String?  @unique
+  goodReadsId     String?  @unique
+  hardcoverId     Int?     @unique
+
+  @@index([bookId])
+}
+
 model Author {
-  id String @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  name String
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  name          String
+  openLibraryId String?  @unique
+  goodReadsId   String?  @unique
+  hardcoverId   Int?     @unique
+
   books Book[]
 
   @@unique([name])
 }
 
 model Image {
-  id String @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  url String
-  width Int
-  height Int
-  books Book[]
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  url       String
+  width     Int
+  height    Int
+  editions  Edition[]
 
   @@unique([url])
 }
 
 model BookQuery {
-  id String @id @default(uuid())
+  id        String   @id @default(uuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  query String
-  books Book[]
+  query     String
+  books     Book[]
 
   @@unique([query])
 }
