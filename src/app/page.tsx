@@ -28,7 +28,7 @@ export default function Home() {
 
   const isbnClick = useCallback(
     () => {
-      router.push(`/isbn/${isbn}.json`);
+      router.push(`/isbn-json/${isbn}`);
     },
     [isbn, router],
   )
