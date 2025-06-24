@@ -273,7 +273,7 @@ export async function search(q: string): Promise<ApiBook[]> {
     return books;
 }
 
-export async function lookupByIsbn13(isbn13: string): Promise<FullBook> {
+export async function lookupByIsbn13(isbn13: string): Promise<FullBook|null> {
     const edition = await db.edition.findFirst({
         where: {
             isbn13,
@@ -316,6 +316,9 @@ export async function lookupByIsbn13(isbn13: string): Promise<FullBook> {
     const res = await fetch(url, options);
     if (!res.ok) {
         console.error(`failed to lookup isbn ISBNDb ${url}, ${res.status} - ${res.statusText}`);
+        if (res.status === 404) {
+            return null; // no book found
+        }
         throw new Error('ISBNDb Error');
     }
     const isbnBook = await res.json() as IsbnDbIsbnLookupRes;
