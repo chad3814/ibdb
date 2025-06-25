@@ -21,6 +21,7 @@ export function getApiAuthor(author: Author): ApiAuthor {
         openLibraryId: author.openLibraryId ?? null,
         goodReadsId: author.goodReadsId ?? null,
         hardcoverId: author.hardcoverId ?? null,
+        hardcoverSlug: author.hardcoverSlug ?? null,
     };
 }
 
@@ -88,5 +89,9 @@ export function getApiBook(book: FullBook): ApiBook {
         binding,
         editions,
         image,
+        hardcoverId: book.hardcoverId ?? null,
+        openLibraryId: book.openLibraryId ?? null,
+        goodReadsId: book.goodReadsId ?? null,
+        hardcoverSlug: book.hardcoverSlug ?? null,
     };
 }

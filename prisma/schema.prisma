@@ -33,6 +33,7 @@ model Book {
   openLibraryId String?   @unique
   goodReadsId   String?   @unique
   hardcoverId   Int?      @unique
+  hardcoverSlug   String?
   editions      Edition[]
 
   queries BookQuery[]
@@ -67,6 +68,7 @@ model Author {
   openLibraryId String?  @unique
   goodReadsId   String?  @unique
   hardcoverId   Int?     @unique
+  hardcoverSlug   String?
 
   books Book[]
 

@@ -15,9 +15,15 @@ type IsbnResponseSuccess = {
 
 type IsbnResponse = IsbnResponseError|IsbnResponseSuccess;
 
-export async function GET(req: NextRequest): Promise<NextResponse<IsbnResponse>> {
-    const path = req.nextUrl.pathname;
-    const isbn = path.split('/').pop();
+type Params = {
+    params: Promise<{
+        isbn: string;
+    }>;
+};
+
+export async function GET(req: NextRequest, { params }: Params): Promise<NextResponse<IsbnResponse>> {
+    const p = await params;
+    const isbn = p.isbn;
 
     if (!isbn) {
         return NextResponse.json({

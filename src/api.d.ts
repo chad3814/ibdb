@@ -15,6 +15,7 @@ export type ApiBook = {
     openLibraryId?: string|null;
     goodReadsId?: string|null;
     hardcoverId?: number|null;
+    hardcoverSlug?: string|null;
 }
 
 export type ApiEdition = {
@@ -42,6 +43,7 @@ export type ApiAuthor = {
     openLibraryId?: string|null;
     goodReadsId?: string|null;
     hardcoverId?: number|null;
+    hardcoverSlug?: string|null;
 }
 
 export type ApiImage = {
