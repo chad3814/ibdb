@@ -6,6 +6,7 @@ Endpoints:
 
 * `/search?q=` search for a book based on title and/or author; a `SearchResult` JSON response
 * `/book/[id]` an HTML view of book data
+* `/book-json/[id]` a `BookResponse` JSON response
 * `/isbn/[isbn13]` an HTML view of book data
 * `/isbn-json/[isbn13]` an `IsbnResponse` JSON response
 
@@ -77,6 +78,18 @@ type SearchResultError = {
 };
 
 type SearchResult = SearchResultSuccess|SearchResultError;
+
+type BookResponseError = {
+    status: 'error';
+    message: string;
+};
+
+type BookResponseSuccess = {
+    status: 'ok';
+    book: ApiBook;
+};
+
+type BookResponse = BookResponseError|BookResponseSuccess;
 
 type IsbnResponseError = {
     status: 'error';

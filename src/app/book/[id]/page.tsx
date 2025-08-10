@@ -9,10 +9,10 @@ type Props = {
 };
 
 export default async function BookPage({ params }: Props) {
-    const p = await params;
+    const {id} = await params;
     const fullBook = await db.book.findFirst({
         where: {
-            id: p.id,
+            id,
         },
         include: {
             authors: true,
