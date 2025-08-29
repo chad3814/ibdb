@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { MissingPostBody, MissingResponse } from '../types/missing';
-import { HardcoverQueryResponse, HardcoverQueryVariables, HardcoverContribution } from './types/hardcover';
+import { HardcoverQueryVariables, HardcoverContribution, queryHardcover } from './types/hardcover';
 import { inspect } from 'node:util';
 
 const HARDCOVER_TOKEN = process.env.HARDCOVER_TOKEN;
@@ -13,44 +13,7 @@ if (!MISSING_POST_SECRET) {
   throw new Error('MISSING_POST_SECRET is not set in the environment variables');
 }
 
-const query = `
-query MyQuery($title: String, $name: String, $isbn: String) {
-  editions(
-    where: {
-      title: {_eq: $title},
-      edition_format: {_is_null: false},
-      contributions: {author: {name: {_eq: $name}}},
-      isbn_13: {_eq: $isbn}
-    }
-  ) {
-    id
-    isbn_13
-    book {
-      id
-      title
-      slug
-      contributions {
-        author {
-          id
-          name
-          slug
-        }
-      }
-    }
-  }
-}
-`;
-
-async function main() {
-    let skip = 0;
-    if (process.argv.length > 2) {
-        skip = parseInt(process.argv[2], 10);
-        if (isNaN(skip) || skip < 0) {
-            console.error('Invalid skip value. It should be a non-negative integer.');
-            process.exit(1);
-        }
-        console.log(`Skipping the first ${skip} missing hardcover IDs.`);
-    }
+async function loop(skip: number) {
     const missingResp = await fetch(`${HOST}/api/missing/hardcover?skip=${skip}`);
     if (!missingResp.ok) {
         throw new Error(`Failed to fetch missing hardcover IDs: ${missingResp.statusText}`);
@@ -70,38 +33,23 @@ async function main() {
     for (const item of missing) {
         await new Promise(resolve => setTimeout(resolve, 500)); // Throttle requests to avoid hitting API limits
         const { title, authors, isbn13: isbn } = item;
-        const name = authors?.[0]?.name;
+        const name = authors?.[0]?.name ?? '';
         const variables: HardcoverQueryVariables = {
             title,
             name,
             isbn
         };
-        const response = await fetch('https://api.hardcover.app/v1/graphql', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${HARDCOVER_TOKEN}`,
-            },
-            body: JSON.stringify({ query, variables }),
-        });
-        if (!response.ok) {
-            console.error(`Failed to fetch hardcover data for ${title}: ${response.statusText}`);
-            continue;
-        }
-        const data = await response.json() as HardcoverQueryResponse;
-        if (data.errors) {
-            console.error(`Error fetching hardcover data for ${title}: ${JSON.stringify(data.errors)}`);
-            continue;
-        }
-        const editions = data.data.editions;
+        const {data} = await queryHardcover(variables, HARDCOVER_TOKEN!);
+
+        const editions = data.editions;
         if (editions.length === 0) {
-            console.log(`No hardcover ID found for ${title} by ${name}`);
+            // console.log(`No hardcover ID found for ${title} by ${name}`);
             continue;
         }
         const edition = editions[0];
         const hardcoverId = edition.id; // Assuming the ID is what you want to update
-        console.log(`Updating hardcover ID for ${title} by ${name} to ${hardcoverId}`);
-        console.log(inspect(data.data, { depth: null, colors: true }));
+        // console.log(`Updating hardcover ID for ${title} by ${name} to ${hardcoverId}`);
+        // console.log(inspect(data, { depth: null, colors: true }));
 
         const updateData: MissingPostBody = {
             edition: {
@@ -130,7 +78,7 @@ async function main() {
             ),
         };
 
-        const updateResponse = await fetch(`${HOST}/missing/hardcover`, {
+        const updateResponse = await fetch(`${HOST}/api/missing/hardcover`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -150,7 +98,31 @@ async function main() {
         console.log(`Successfully updated hardcover ID for ${title} by ${name}`);
         updatedCount++;
     }
-    console.log(`Next skip value: ${skip + missing.length - updatedCount}; total: ${total}`);
+    return { total, updatedCount, length: missing.length};
+}
+
+async function main() {
+    let skip = 0;
+    if (process.argv.length > 2) {
+        skip = parseInt(process.argv[2], 10);
+        if (isNaN(skip) || skip < 0) {
+            console.error('Invalid skip value. It should be a non-negative integer.');
+            process.exit(1);
+        }
+        console.log(`Skipping the first ${skip} missing hardcover IDs.`);
+    }
+    let total = Number.MAX_SAFE_INTEGER;
+    while (skip < total) {
+        const result = await loop(skip);
+        if (!result) {
+            break;
+        }
+        total = result.total;
+        const updatedCount = result.updatedCount;
+        const length = result.length;
+        skip += length - updatedCount;;
+        console.log(`Next skip value: ${skip + length - updatedCount}; total: ${total}`);
+    }
 }
 
 main().then(() => {
