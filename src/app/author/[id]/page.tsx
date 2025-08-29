@@ -4,13 +4,14 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 interface PageProps {
-    params: { id: string };
+    params: Promise<{ id: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+    const {id} = await params;
     try {
         const author = await db.author.findUnique({
-            where: { id: params.id },
+            where: { id },
             include: {
                 _count: {
                     select: { books: true }
@@ -53,14 +54,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function AuthorPage({ params }: PageProps) {
+    const {id} = await params;
     // Verify the author exists
     const author = await db.author.findUnique({
-        where: { id: params.id }
+        where: { id }
     });
 
     if (!author) {
         notFound();
     }
 
-    return <AuthorDetail authorId={params.id} />;
+    return <AuthorDetail authorId={id} />;
 }
