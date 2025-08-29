@@ -32,6 +32,7 @@ export async function GET(req: NextRequest, { params }: Params): Promise<NextRes
     const where: Prisma.EditionWhereInput = {
         [externalId]: null,
     };
+    const total = await db.edition.count({where});
     const editions = await db.edition.findMany({
         where,
         select: {
@@ -69,6 +70,7 @@ export async function GET(req: NextRequest, { params }: Params): Promise<NextRes
         return NextResponse.json({
             status: 'ok',
             missing: [],
+            total,
         });
     }
 
@@ -93,6 +95,7 @@ export async function GET(req: NextRequest, { params }: Params): Promise<NextRes
     return NextResponse.json({
         status: 'ok',
         missing,
+        total,
     });
 }
 

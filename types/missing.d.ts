@@ -5,6 +5,7 @@ type MissingError = {
 type MissingSuccess = {
     status: 'ok';
     missing: MissingInfo[];
+    total: number;
 };
 type MissingInfoBase = {
     editionId: string;

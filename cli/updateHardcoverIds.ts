@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import { MissingPostBody, MissingResponse } from '../types/missing';
 import { inspect } from 'node:util';
-import { it } from 'node:test';
 
 const HARDCOVER_TOKEN = process.env.HARDCOVER_TOKEN;
 if (!HARDCOVER_TOKEN) {
@@ -17,8 +16,8 @@ const query = `
 query MyQuery($title: String, $name: String, $isbn: String) {
   editions(
     where: {
-      title: {_eq: $title}, 
-      edition_format: {_is_null: false}, 
+      title: {_eq: $title},
+      edition_format: {_is_null: false},
       contributions: {author: {name: {_eq: $name}}},
       isbn_13: {_eq: $isbn}
     }
@@ -60,6 +59,7 @@ async function main() {
         throw new Error(`Error in missing data: ${missingData.message}`);
     }
     const missing = missingData.missing;
+    const total = missingData.total;
     if (missing.length === 0) {
         console.log('No missing hardcover IDs to update.');
         return;
@@ -67,7 +67,7 @@ async function main() {
     console.log(`Found ${missing.length} missing hardcover IDs to update.`);
     let updatedCount = 0;
     for (const item of missing) {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Throttle requests to avoid hitting API limits
+        await new Promise(resolve => setTimeout(resolve, 500)); // Throttle requests to avoid hitting API limits
         const { title, authors, isbn13: isbn } = item;
         const name = authors?.[0]?.name;
         const variables = {
@@ -101,7 +101,7 @@ async function main() {
         const hardcoverId = edition.id; // Assuming the ID is what you want to update
         console.log(`Updating hardcover ID for ${title} by ${name} to ${hardcoverId}`);
         console.log(inspect(data.data, { depth: null, colors: true }));
-        
+
         const updateData: MissingPostBody = {
             edition: {
                 id: item.editionId,
@@ -149,7 +149,7 @@ async function main() {
         console.log(`Successfully updated hardcover ID for ${title} by ${name}`);
         updatedCount++;
     }
-    console.log(`Next skip value: ${skip + missing.length - updatedCount}`);
+    console.log(`Next skip value: ${skip + missing.length - updatedCount}; total: ${total}`);
 }
 
 main().then(() => {

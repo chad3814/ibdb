@@ -1,8 +1,29 @@
-# IBDb
+# IBDb - Internet Book Database
 
-## IBDb - Internet Book Database
+A Next.js-based book metadata aggregation service providing both API endpoints and web interfaces for book data lookup via ISBN and search functionality.
 
-Endpoints:
+## 📖 Documentation
+
+For comprehensive documentation, see the [docs/](./docs/) directory:
+
+- **[Complete Documentation](./docs/README.md)** - Overview and quick start guide
+- **[API Reference](./docs/API_REFERENCE.md)** - Detailed API documentation with examples
+- **[Development Guide](./docs/DEVELOPMENT.md)** - Setup, workflow, and contribution guidelines  
+- **[Deployment Guide](./docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[Database Schema](./docs/DATABASE_SCHEMA.md)** - Database design and relationships
+- **[Project Structure](./docs/PROJECT_STRUCTURE.md)** - Codebase architecture overview
+
+## Quick Start
+
+```bash
+npm install                    # Install dependencies
+cp .env.example .env.local     # Configure environment
+npx prisma generate            # Generate database client
+npx prisma migrate dev         # Set up database
+npm run dev                    # Start development server
+```
+
+## API Endpoints
 
 * `/search?q=` search for a book based on title and/or author; a `SearchResult` JSON response
 * `/book/[id]` an HTML view of book data
