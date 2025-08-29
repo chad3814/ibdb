@@ -58,7 +58,7 @@ export default function Home() {
                 {/* End of results indicator */}
                 {!hasMore && books.length > 0 && !loading && (
                     <div className={styles.endMessage} role="status" aria-live="polite">
-                        <p>You've reached the end of our book collection!</p>
+                        <p>You&apos;ve reached the end of our book collection!</p>
                         <p className={styles.totalCount}>
                             Showing all {books.length} books
                         </p>

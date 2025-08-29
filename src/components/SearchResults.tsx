@@ -116,7 +116,7 @@ export default function SearchResults({ query }: SearchResultsProps) {
                     <div className={styles.noResults}>
                         <h2 className={styles.noResultsTitle}>No Results Found</h2>
                         <p className={styles.noResultsDescription}>
-                            We couldn't find any books matching "{query}". Try:
+                            We couldn&apos;t find any books matching &ldquo;{query}&rdquo;. Try:
                         </p>
                         <ul className={styles.suggestions}>
                             <li>Checking your spelling</li>

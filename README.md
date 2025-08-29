@@ -26,24 +26,27 @@ npm run dev                    # Start development server
 ## API Endpoints
 
 ### Web Pages
-* `/` - Home page with infinite scroll of books
-* `/book/[id]` - HTML view of book details
-* `/isbn/[isbn13]` - HTML view of book data by ISBN
-* `/author/[id]` - Author profile page with book list
-* `/authors` - Authors listing with alphabetical filtering
-* `/books?q=` - Search results page
+
+- `/` - Home page with infinite scroll of books
+- `/book/[id]` - HTML view of book details
+- `/isbn/[isbn13]` - HTML view of book data by ISBN
+- `/author/[id]` - Author profile page with book list
+- `/authors` - Authors listing with alphabetical filtering
+- `/books?q=` - Search results page
 
 ### JSON APIs
-* `/search?q=` - Search for books by title/author; returns `SearchResult` JSON (legacy endpoint, always returns JSON)
-* `/api/search?q=` - Search for books by title/author; returns `SearchResult` JSON (preferred endpoint)
-* `/book/[id].json` - Book data as `BookResponse` JSON
-* `/isbn/[isbn13].json` - Book data by ISBN as `IsbnResponse` JSON
-* `/api/authors` - List all authors (supports `?letter=` for filtering)
-* `/api/authors/[id]` - Author details with books
+
+- `/search?q=` - Search for books by title/author; returns `SearchResult` JSON (legacy endpoint, always returns JSON)
+- `/api/search?q=` - Search for books by title/author; returns `SearchResult` JSON (preferred endpoint)
+- `/book/[id].json` - Book data as `BookResponse` JSON
+- `/isbn/[isbn13].json` - Book data by ISBN as `IsbnResponse` JSON
+- `/api/authors` - List all authors (supports `?letter=` for filtering)
+- `/api/authors/[id]` - Author details with books
 
 ### Legacy Endpoints (deprecated, but still supported)
-* `/book-json/[id]` - Redirects to `/book/[id].json`
-* `/isbn-json/[isbn13]` - Redirects to `/isbn/[isbn13].json`
+
+- `/book-json/[id]` - Redirects to `/book/[id].json`
+- `/isbn-json/[isbn13]` - Redirects to `/isbn/[isbn13].json`
 
 ## JSON typings
 

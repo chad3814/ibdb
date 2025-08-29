@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { MissingPostBody, MissingResponse } from '../types/missing';
+import { HardcoverQueryResponse, HardcoverQueryVariables, HardcoverContribution } from './types/hardcover';
 import { inspect } from 'node:util';
 
 const HARDCOVER_TOKEN = process.env.HARDCOVER_TOKEN;
@@ -70,7 +71,7 @@ async function main() {
         await new Promise(resolve => setTimeout(resolve, 500)); // Throttle requests to avoid hitting API limits
         const { title, authors, isbn13: isbn } = item;
         const name = authors?.[0]?.name;
-        const variables = {
+        const variables: HardcoverQueryVariables = {
             title,
             name,
             isbn
@@ -87,7 +88,7 @@ async function main() {
             console.error(`Failed to fetch hardcover data for ${title}: ${response.statusText}`);
             continue;
         }
-        const data = await response.json();
+        const data = await response.json() as HardcoverQueryResponse;
         if (data.errors) {
             console.error(`Error fetching hardcover data for ${title}: ${JSON.stringify(data.errors)}`);
             continue;
@@ -114,16 +115,16 @@ async function main() {
             },
             authors: item.authors.filter(
                 author => edition.book.contributions.some(
-                    (contributor: any) => contributor.author.name === author.name
+                    (contributor: HardcoverContribution) => contributor.author.name === author.name
                 )
             ).map(
                 author => ({
                     id: author.id,
                     hardcoverId: edition.book.contributions.find(
-                        (contributor: any) => contributor.author.name === author.name
+                        (contributor: HardcoverContribution) => contributor.author.name === author.name
                     )?.author.id || null,
                     hardcoverSlug: edition.book.contributions.find(
-                        (contributor: any) => contributor.author.name === author.name
+                        (contributor: HardcoverContribution) => contributor.author.name === author.name
                     )?.author.slug || null,
                 })
             ),

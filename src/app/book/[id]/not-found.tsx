@@ -8,7 +8,7 @@ export default function NotFound() {
                 <div className={styles.icon} aria-hidden="true">📚</div>
                 <h1 className={styles.title}>Book Not Found</h1>
                 <p className={styles.description}>
-                    The book you're looking for doesn't exist in our database or the ID is invalid.
+                    The book you&apos;re looking for doesn&apos;t exist in our database or the ID is invalid.
                 </p>
                 <div className={styles.actions}>
                     <Link href="/" className={styles.homeButton}>

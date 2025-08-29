@@ -7,7 +7,7 @@ export default function NotFound() {
             <div className={styles.content}>
                 <h1 className={styles.title}>Author Not Found</h1>
                 <p className={styles.message}>
-                    The author you're looking for doesn't exist or may have been removed.
+                    The author you&apos;re looking for doesn&apos;t exist or may have been removed.
                 </p>
                 <div className={styles.actions}>
                     <Link href="/" className={styles.homeButton}>

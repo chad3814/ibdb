@@ -1,6 +1,5 @@
 'use client';
 
-import { ApiBook } from '@/api';
 import { BookCardProps } from '@/types/home';
 import Image from 'next/image';
 import Link from 'next/link';

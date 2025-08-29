@@ -65,9 +65,10 @@ function ExternalLinks({ book }: { book: ApiBook }) {
 }
 
 function EditionsList({ editions }: { editions: ApiBook['editions'] }) {
+    const [showAllEditions, setShowAllEditions] = useState(false);
+    
     if (editions.length <= 1) return null;
     
-    const [showAllEditions, setShowAllEditions] = useState(false);
     const displayedEditions = showAllEditions ? editions : editions.slice(0, 3);
     
     return (
