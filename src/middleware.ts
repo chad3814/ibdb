@@ -3,6 +3,15 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
+    const searchParams = request.nextUrl.searchParams;
+    
+    // Handle /search?q= - always serve JSON for backward compatibility
+    // This endpoint is now API-only, web users should use /books
+    if (pathname === '/search' && searchParams.has('q')) {
+        const url = new URL(`/api/search`, request.url);
+        url.search = request.nextUrl.search;
+        return NextResponse.rewrite(url);
+    }
     
     // Handle /book/[id].json redirects
     if (pathname.startsWith('/book/') && pathname.endsWith('.json')) {
@@ -37,6 +46,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
+        '/search',
         '/book/:path*.json',
         '/isbn/:path*.json',
         '/book-json/:path*',

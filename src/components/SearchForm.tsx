@@ -17,7 +17,7 @@ export default function SearchForm() {
         setLoading(true);
         try {
             // Navigate to search results page
-            router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+            router.push(`/books?q=${encodeURIComponent(query.trim())}`);
         } catch (error) {
             console.error('Search error:', error);
         } finally {

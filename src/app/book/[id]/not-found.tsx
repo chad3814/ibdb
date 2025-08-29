@@ -14,7 +14,7 @@ export default function NotFound() {
                     <Link href="/" className={styles.homeButton}>
                         Go Back Home
                     </Link>
-                    <Link href="/search" className={styles.searchButton}>
+                    <Link href="/books" className={styles.searchButton}>
                         Search Books
                     </Link>
                 </div>
