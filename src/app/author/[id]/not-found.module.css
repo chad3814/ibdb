@@ -1,0 +1,89 @@
+.container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 32px;
+}
+
+.content {
+    text-align: center;
+    max-width: 500px;
+}
+
+.title {
+    font-size: 48px;
+    font-weight: 700;
+    margin: 0 0 16px 0;
+    color: var(--foreground);
+}
+
+.message {
+    font-size: 18px;
+    color: var(--foreground);
+    opacity: 0.7;
+    line-height: 1.6;
+    margin: 0 0 32px 0;
+}
+
+.actions {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.homeButton,
+.authorsButton {
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.homeButton {
+    background: var(--foreground);
+    color: var(--background);
+}
+
+.authorsButton {
+    background: transparent;
+    color: var(--foreground);
+    border: 2px solid var(--foreground);
+}
+
+.homeButton:hover,
+.authorsButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+    .homeButton:hover,
+    .authorsButton:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+}
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+    .title {
+        font-size: 32px;
+    }
+
+    .message {
+        font-size: 16px;
+    }
+
+    .actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .homeButton,
+    .authorsButton {
+        width: 100%;
+    }
+}

@@ -1,6 +1,6 @@
 import { Author, db, Prisma } from "@/server/db";
 import { NextRequest,NextResponse } from "next/server";
-import { ExternalId, MissingInfo, MissingPostBody, MissingPostResponse, MissingResponse } from "../../../../types/missing";
+import { ExternalId, MissingInfo, MissingPostBody, MissingPostResponse, MissingResponse } from "../../../../../types/missing";
 
 type Params = {
     params: Promise<{
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest, { params }: Params): Promise<NextRes
             },
         },
         orderBy: {
-            id: 'asc',
+            createdAt: 'desc',
         },
         take: 100,
         skip,

@@ -22,7 +22,8 @@ type Params = {
 };
 
 export async function GET(req: NextRequest, { params }: Params): Promise<NextResponse<BookResponse>> {
-    const {id} = await params;
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
 
     if (!id) {
         return NextResponse.json({
@@ -57,5 +58,3 @@ export async function GET(req: NextRequest, { params }: Params): Promise<NextRes
         message: `no book with id "${id}" found`,
     }, {status: 404});
 }
-
-export const dynamic = 'force-static';

@@ -1,0 +1,199 @@
+.container {
+    min-height: 100vh;
+    background: var(--background);
+    color: var(--foreground);
+}
+
+.header {
+    text-align: center;
+    padding: 40px 16px 32px;
+    background: var(--background);
+    border-bottom: 1px solid var(--gray-alpha-200);
+}
+
+.title {
+    font-size: 48px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    color: var(--foreground);
+    font-family: var(--font-geist-sans);
+}
+
+.subtitle {
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--foreground);
+    opacity: 0.8;
+    margin: 0 0 12px 0;
+}
+
+.description {
+    font-size: 16px;
+    color: var(--foreground);
+    opacity: 0.7;
+    margin: 0 0 32px 0;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.5;
+}
+
+.searchSection {
+    margin-top: 24px;
+}
+
+.main {
+    padding: 32px 0;
+    min-height: calc(100vh - 200px);
+}
+
+.sentinel {
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px;
+    margin-top: 24px;
+}
+
+.loadingMore {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--foreground);
+    opacity: 0.7;
+}
+
+.loadingMoreText {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.endMessage {
+    text-align: center;
+    padding: 48px 16px;
+    color: var(--foreground);
+    opacity: 0.7;
+    border-top: 1px solid var(--gray-alpha-200);
+    margin-top: 32px;
+}
+
+.endMessage p {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.endMessage p:last-child {
+    margin-bottom: 0;
+}
+
+.totalCount {
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .header {
+        padding: 24px 12px 20px;
+    }
+
+    .title {
+        font-size: 36px;
+    }
+
+    .subtitle {
+        font-size: 16px;
+    }
+
+    .description {
+        font-size: 14px;
+    }
+
+    .main {
+        padding: 20px 0;
+        min-height: calc(100vh - 160px);
+    }
+
+    .sentinel {
+        padding: 24px 12px;
+        margin-top: 16px;
+    }
+
+    .endMessage {
+        padding: 32px 12px;
+        margin-top: 24px;
+    }
+
+    .endMessage p {
+        font-size: 14px;
+    }
+
+    .totalCount {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .header {
+        padding: 20px 8px 16px;
+    }
+
+    .title {
+        font-size: 28px;
+    }
+
+    .subtitle {
+        font-size: 14px;
+    }
+
+    .description {
+        font-size: 13px;
+    }
+
+    .main {
+        padding: 16px 0;
+    }
+
+    .sentinel {
+        padding: 20px 8px;
+    }
+
+    .endMessage {
+        padding: 24px 8px;
+    }
+}
+
+/* Large screens */
+@media (min-width: 1200px) {
+    .header {
+        padding: 64px 16px 48px;
+    }
+
+    .title {
+        font-size: 56px;
+    }
+
+    .subtitle {
+        font-size: 20px;
+    }
+
+    .description {
+        font-size: 18px;
+    }
+
+    .main {
+        padding: 48px 0;
+    }
+}
+
+/* Dark mode specific adjustments */
+@media (prefers-color-scheme: dark) {
+    .header {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .endMessage {
+        border-top-color: rgba(255, 255, 255, 0.1);
+    }
+}

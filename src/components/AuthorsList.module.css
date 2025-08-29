@@ -1,0 +1,364 @@
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 16px;
+    min-height: 100vh;
+}
+
+/* Header */
+.header {
+    margin-bottom: 48px;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 24px;
+    font-size: 14px;
+}
+
+.breadcrumbLink {
+    color: var(--foreground);
+    opacity: 0.7;
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+}
+
+.breadcrumbLink:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+.breadcrumbSeparator {
+    color: var(--foreground);
+    opacity: 0.4;
+}
+
+.breadcrumbCurrent {
+    color: var(--foreground);
+    font-weight: 500;
+}
+
+.title {
+    font-size: 48px;
+    font-weight: 700;
+    margin: 0 0 12px 0;
+    color: var(--foreground);
+    letter-spacing: -0.02em;
+}
+
+.subtitle {
+    font-size: 18px;
+    color: var(--foreground);
+    opacity: 0.7;
+    margin: 0 0 32px 0;
+}
+
+/* Alphabet Filter */
+.alphabetFilter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 24px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid var(--gray-alpha-200);
+}
+
+.letterButton {
+    padding: 8px 12px;
+    min-width: 40px;
+    background: transparent;
+    color: var(--foreground);
+    border: 2px solid var(--gray-alpha-200);
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.letterButton:hover {
+    background: var(--gray-alpha-100);
+    border-color: var(--foreground);
+}
+
+.letterButton:focus {
+    outline: 2px solid #0066cc;
+    outline-offset: 2px;
+}
+
+.letterActive {
+    background: var(--foreground);
+    color: var(--background);
+    border-color: var(--foreground);
+}
+
+.letterActive:hover {
+    opacity: 0.9;
+}
+
+/* Authors Grid */
+.authorsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 48px;
+}
+
+.authorCard {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: var(--gray-alpha-100);
+    border: 1px solid var(--gray-alpha-200);
+    border-radius: 12px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.authorCard:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--foreground);
+}
+
+.authorCard:focus {
+    outline: 2px solid #0066cc;
+    outline-offset: 2px;
+}
+
+.authorInitial {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 600;
+    color: white;
+    flex-shrink: 0;
+}
+
+.authorInfo {
+    flex: 1;
+    min-width: 0;
+}
+
+.authorName {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    color: var(--foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bookCount {
+    font-size: 14px;
+    color: var(--foreground);
+    opacity: 0.6;
+    margin: 0;
+}
+
+/* Infinite Scroll */
+.loadingTrigger {
+    min-height: 1px;
+    margin: 32px 0;
+}
+
+.loadingMoreContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    gap: 16px;
+}
+
+.srOnly {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Error Banner */
+.errorBanner {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 24px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.errorBannerText {
+    font-size: 14px;
+    color: var(--foreground);
+    flex: 1;
+}
+
+.retryButtonSmall {
+    background: transparent;
+    color: var(--foreground);
+    border: 1px solid var(--foreground);
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.retryButtonSmall:hover {
+    background: var(--foreground);
+    color: var(--background);
+}
+
+/* States */
+.loadingContainer,
+.errorContainer,
+.emptyContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    text-align: center;
+}
+
+.loadingText,
+.errorText,
+.emptyText {
+    font-size: 18px;
+    color: var(--foreground);
+    opacity: 0.7;
+    margin: 16px 0;
+}
+
+.retryButton {
+    padding: 12px 24px;
+    background: var(--foreground);
+    color: var(--background);
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.retryButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+    .searchInput {
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .authorCard {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .authorCard:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .loadMoreButton:hover:not(:disabled),
+    .retryButton:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .container {
+        padding: 16px 12px;
+    }
+
+    .title {
+        font-size: 36px;
+    }
+
+    .subtitle {
+        font-size: 16px;
+    }
+
+    .alphabetFilter {
+        gap: 6px;
+    }
+
+    .letterButton {
+        padding: 6px 10px;
+        min-width: 36px;
+        font-size: 13px;
+    }
+
+    .authorsGrid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+    }
+
+    .authorCard {
+        padding: 16px;
+    }
+
+    .authorInitial {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+    }
+
+    .authorName {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .title {
+        font-size: 28px;
+    }
+
+    .authorsGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .alphabetFilter {
+        gap: 4px;
+    }
+
+    .letterButton {
+        padding: 6px 8px;
+        min-width: 32px;
+        font-size: 12px;
+    }
+
+    .errorBanner {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .retryButtonSmall {
+        align-self: center;
+    }
+}

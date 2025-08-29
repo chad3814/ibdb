@@ -50,7 +50,7 @@ async function main() {
         }
         console.log(`Skipping the first ${skip} missing hardcover IDs.`);
     }
-    const missingResp = await fetch(`${HOST}/missing/hardcover?skip=${skip}`);
+    const missingResp = await fetch(`${HOST}/api/missing/hardcover?skip=${skip}`);
     if (!missingResp.ok) {
         throw new Error(`Failed to fetch missing hardcover IDs: ${missingResp.statusText}`);
     }

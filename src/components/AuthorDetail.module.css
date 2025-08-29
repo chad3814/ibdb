@@ -1,0 +1,246 @@
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 16px;
+    min-height: 100vh;
+}
+
+/* Breadcrumb Navigation */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 32px;
+    font-size: 14px;
+    flex-wrap: wrap;
+}
+
+.breadcrumbLink {
+    color: var(--foreground);
+    opacity: 0.7;
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+}
+
+.breadcrumbLink:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+.breadcrumbSeparator {
+    color: var(--foreground);
+    opacity: 0.4;
+}
+
+.breadcrumbCurrent {
+    color: var(--foreground);
+    font-weight: 500;
+}
+
+/* Author Header */
+.header {
+    background: linear-gradient(135deg, var(--gray-alpha-100) 0%, var(--gray-alpha-200) 100%);
+    border-radius: 16px;
+    padding: 48px;
+    margin-bottom: 48px;
+    text-align: center;
+}
+
+.authorName {
+    font-size: 48px;
+    font-weight: 700;
+    margin: 0 0 24px 0;
+    color: var(--foreground);
+    letter-spacing: -0.02em;
+}
+
+.stats {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    flex-wrap: wrap;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.statLabel {
+    font-size: 14px;
+    color: var(--foreground);
+    opacity: 0.6;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.statValue {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--foreground);
+}
+
+/* Books Section */
+.booksSection {
+    margin-top: 48px;
+}
+
+.sectionTitle {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 0 0 32px 0;
+    color: var(--foreground);
+}
+
+.noBooksMessage {
+    text-align: center;
+    padding: 64px 16px;
+    background: var(--gray-alpha-100);
+    border-radius: 12px;
+}
+
+.noBooksMessage p {
+    font-size: 18px;
+    color: var(--foreground);
+    opacity: 0.7;
+    margin: 0;
+}
+
+/* Loading State */
+.loadingContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 16px;
+}
+
+.loadingText {
+    font-size: 16px;
+    color: var(--foreground);
+    opacity: 0.7;
+}
+
+/* Error State */
+.errorContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    padding: 32px;
+}
+
+.errorContent {
+    text-align: center;
+    max-width: 500px;
+}
+
+.errorTitle {
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--foreground);
+    margin: 0 0 16px 0;
+}
+
+.errorMessage {
+    font-size: 18px;
+    color: var(--foreground);
+    opacity: 0.7;
+    line-height: 1.6;
+    margin: 0 0 32px 0;
+}
+
+.homeButton {
+    display: inline-block;
+    background: var(--foreground);
+    color: var(--background);
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.homeButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+    .header {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.1) 100%);
+    }
+
+    .noBooksMessage {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .homeButton:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .container {
+        padding: 16px 12px;
+    }
+
+    .header {
+        padding: 32px 24px;
+        margin-bottom: 32px;
+    }
+
+    .authorName {
+        font-size: 32px;
+    }
+
+    .stats {
+        gap: 32px;
+    }
+
+    .statValue {
+        font-size: 20px;
+    }
+
+    .sectionTitle {
+        font-size: 24px;
+        margin-bottom: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .header {
+        padding: 24px 16px;
+    }
+
+    .authorName {
+        font-size: 28px;
+    }
+
+    .stats {
+        gap: 24px;
+    }
+
+    .statLabel {
+        font-size: 12px;
+    }
+
+    .statValue {
+        font-size: 18px;
+    }
+
+    .sectionTitle {
+        font-size: 20px;
+    }
+
+    .breadcrumb {
+        font-size: 12px;
+        margin-bottom: 24px;
+    }
+}

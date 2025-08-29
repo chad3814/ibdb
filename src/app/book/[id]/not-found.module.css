@@ -1,0 +1,94 @@
+.container {
+    min-height: 100vh;
+    background: var(--background);
+    color: var(--foreground);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.content {
+    text-align: center;
+    max-width: 500px;
+}
+
+.icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.7;
+}
+
+.title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--foreground);
+}
+
+.description {
+    font-size: 1.125rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    color: rgba(var(--gray-rgb), 0.8);
+}
+
+.actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.homeButton,
+.searchButton {
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.homeButton {
+    background: #0066cc;
+    color: white;
+}
+
+.homeButton:hover {
+    background: #0052a3;
+    transform: translateY(-1px);
+}
+
+.searchButton {
+    background: var(--gray-alpha-200);
+    color: var(--foreground);
+    border: 1px solid var(--gray-alpha-200);
+}
+
+.searchButton:hover {
+    background: var(--gray-alpha-100);
+    transform: translateY(-1px);
+}
+
+.homeButton:focus,
+.searchButton:focus {
+    outline: 2px solid #0066cc;
+    outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+    .title {
+        font-size: 2rem;
+    }
+    
+    .actions {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .homeButton,
+    .searchButton {
+        width: 100%;
+        max-width: 200px;
+    }
+}
