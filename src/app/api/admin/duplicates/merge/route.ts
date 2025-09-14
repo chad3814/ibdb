@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (authors.length !== authorIds.length) {
+      console.error('Not all authors were found:', authors);
       return NextResponse.json(
         { error: 'Some authors not found' },
         { status: 404 }
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
 
     const targetAuthor = authors.find(a => a.id === targetAuthorId);
     if (!targetAuthor) {
+      console.error('target author not found', targetAuthorId);
       return NextResponse.json(
         { error: 'Target author not found' },
         { status: 404 }
@@ -56,7 +58,7 @@ export async function POST(request: NextRequest) {
       // Get all books from authors being merged (excluding target)
       const authorsToMerge = authors.filter(a => a.id !== targetAuthorId);
       const bookIdsToReassign = new Set<string>();
-      
+
       for (const author of authorsToMerge) {
         for (const book of author.books) {
           bookIdsToReassign.add(book.id);
