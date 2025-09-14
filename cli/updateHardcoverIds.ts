@@ -12,6 +12,10 @@ if (!MISSING_POST_SECRET) {
   throw new Error('MISSING_POST_SECRET is not set in the environment variables');
 }
 
+async function sleep(ms: number): Promise<void> {
+    return new Promise((result) => setTimeout(result, ms));
+}
+
 async function loop(processingId?: string) {
     const url = processingId
         ? `${HOST}/api/missing/hardcover?previousProcessingId=${processingId}`
@@ -26,14 +30,13 @@ async function loop(processingId?: string) {
         throw new Error(`Error in missing data: ${missingData.message}`);
     }
     const missing = missingData.missing;
-    const total = missingData.total;
     const newProcessingId = missingData.processingId;
     const remainingUnclaimed = missingData.remainingUnclaimed;
     if (missing.length === 0) {
         console.log('No missing hardcover IDs to update.');
         return { processingId: newProcessingId, updatedCount: 0, length: 0, remainingUnclaimed };
     }
-    console.log(`Found ${missing.length} missing hardcover IDs to update. ${remainingUnclaimed} remaining in queue.`);
+    console.log(`Found ${missing.length} missing hardcover IDs to update. ${remainingUnclaimed} remaining in queue. ${newProcessingId}`);
     let updatedCount = 0;
     for (const item of missing) {
         await new Promise(resolve => setTimeout(resolve, 500)); // Throttle requests to avoid hitting API limits
@@ -83,16 +86,26 @@ async function loop(processingId?: string) {
             ),
         };
 
-        const updateResponse = await fetch(`${HOST}/api/missing/hardcover`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-secret': MISSING_POST_SECRET!,
-            },
-            body: JSON.stringify(updateData),
-        });
-        if (!updateResponse.ok) {
-            console.error(`Failed to update hardcover ID for ${title}: ${updateResponse.statusText}`);
+        let updateResponse: Response | undefined;
+        let done = false;
+        while (!done) {
+            try {
+                updateResponse = await fetch(`${HOST}/api/missing/hardcover`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-secret': MISSING_POST_SECRET!,
+                    },
+                    body: JSON.stringify(updateData),
+                });
+                done = true;
+            } catch (error) {
+                console.error(`network error ${error}`);
+                await sleep(1500);
+            }
+        }
+        if (!updateResponse || !updateResponse.ok) {
+            console.error(`Failed to update hardcover ID for ${title}: ${updateResponse?.statusText}`);
             continue;
         }
         const update = await updateResponse.json();
