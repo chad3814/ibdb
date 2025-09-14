@@ -14,7 +14,8 @@ import { randomUUID } from 'crypto';
 export async function claimBooks(previousProcessingId?: string, limit: number = 100) {
   const newProcessingId = randomUUID();
 
-  return await db.$transaction(async (tx) => {
+  // Use a transaction only for the critical claiming operations
+  const bookIds = await db.$transaction(async (tx) => {
     // Step 1: Release previous claim if provided
     if (previousProcessingId) {
       await tx.hardcoverQueue.deleteMany({
@@ -24,7 +25,7 @@ export async function claimBooks(previousProcessingId?: string, limit: number = 
       });
     }
 
-    // Step 2: Select unclaimed books
+    // Step 2: Select unclaimed books (simplified query)
     const unclaimedBooks = await tx.hardcoverQueue.findMany({
       where: {
         processingId: null
@@ -32,22 +33,17 @@ export async function claimBooks(previousProcessingId?: string, limit: number = 
       take: limit,
       select: {
         bookId: true
-      },
-      orderBy: {
-        book: {
-          createdAt: 'desc'
-        }
       }
     });
 
-    const bookIds = unclaimedBooks.map(b => b.bookId);
+    const ids = unclaimedBooks.map(b => b.bookId);
 
     // Step 3: Claim the selected books
-    if (bookIds.length > 0) {
+    if (ids.length > 0) {
       await tx.hardcoverQueue.updateMany({
         where: {
           bookId: {
-            in: bookIds
+            in: ids
           }
         },
         data: {
@@ -57,37 +53,45 @@ export async function claimBooks(previousProcessingId?: string, limit: number = 
       });
     }
 
-    // Step 4: Get full book data with editions and authors
-    const books = await tx.book.findMany({
-      where: {
-        id: {
-          in: bookIds
-        }
-      },
-      include: {
-        authors: true,
-        editions: {
-          orderBy: {
-            createdAt: 'desc'
-          },
-          take: 1
-        }
-      }
-    });
-
-    // Step 5: Count remaining unclaimed
-    const remainingUnclaimed = await tx.hardcoverQueue.count({
-      where: {
-        processingId: null
-      }
-    });
-
-    return {
-      books,
-      processingId: newProcessingId,
-      remainingUnclaimed
-    };
+    return ids;
+  }, {
+    maxWait: 10000, // Max time to wait for a transaction slot (10s)
+    timeout: 20000  // Transaction timeout (20s)
   });
+
+  // Step 4: Get full book data with editions and authors (outside transaction)
+  const books = bookIds.length > 0 ? await db.book.findMany({
+    where: {
+      id: {
+        in: bookIds
+      }
+    },
+    include: {
+      authors: true,
+      editions: {
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: 1
+      }
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  }) : [];
+
+  // Step 5: Count remaining unclaimed (outside transaction)
+  const remainingUnclaimed = await db.hardcoverQueue.count({
+    where: {
+      processingId: null
+    }
+  });
+
+  return {
+    books,
+    processingId: newProcessingId,
+    remainingUnclaimed
+  };
 }
 
 /**
