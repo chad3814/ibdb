@@ -68,6 +68,7 @@ export default function AdminDuplicatesPage() {
   const [selectedPair, setSelectedPair] = useState<AuthorDuplicate | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [merging, setMerging] = useState(false);
+  const [continuousReviewMode, setContinuousReviewMode] = useState(false);
 
   const fetchStats = async () => {
     try {
@@ -358,6 +359,17 @@ export default function AdminDuplicatesPage() {
 
             {/* Scan Actions */}
             <div className="flex gap-3">
+              {stats && stats.status.pending > 0 && (
+                <button
+                  onClick={() => setContinuousReviewMode(true)}
+                  className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors font-medium"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Continuous Review ({stats.status.pending})
+                </button>
+              )}
               {selectedIds.size > 0 && (
                 <button
                   onClick={mergeAllSelected}
@@ -559,14 +571,16 @@ export default function AdminDuplicatesPage() {
       {/* Enhanced Review Modal with Continuous Flow */}
       <DuplicateReviewModal
         initialPair={selectedPair}
-        isOpen={!!selectedPair}
+        isOpen={!!selectedPair || continuousReviewMode}
         onClose={() => {
           setSelectedPair(null);
+          setContinuousReviewMode(false);
           fetchDuplicates();
           fetchStats();
         }}
         onComplete={() => {
           setSelectedPair(null);
+          setContinuousReviewMode(false);
           fetchDuplicates();
           fetchStats();
         }}
