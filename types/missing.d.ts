@@ -6,6 +6,8 @@ type MissingSuccess = {
     status: 'ok';
     missing: MissingInfo[];
     total: number;
+    processingId?: string;      // New field for queue processing
+    remainingUnclaimed?: number; // New field for monitoring
 };
 type MissingInfoBase = {
     editionId: string;
@@ -16,6 +18,8 @@ type MissingInfoBase = {
 type MissingInfoHardcover = {
     bookHardcoverId: number|null;
     bookHardcoverSlug?: string|null;
+    bookOpenLibraryId?: string|null;
+    bookGoodReadsId?: string|null;
     authors: AuthorInfoHardcover[];
 };
 type MissingInfoOpenLibrary = {
@@ -35,6 +39,8 @@ type AuthorInfoBase = {
 type AuthorInfoHardcover = AuthorInfoBase & {
     hardcoverId: number|null;
     hardcoverSlug?: string|null;
+    openLibraryId?: string|null;
+    goodReadsId?: string|null;
 };
 
 type AuthorInfoOpenLibrary = AuthorInfoBase & {

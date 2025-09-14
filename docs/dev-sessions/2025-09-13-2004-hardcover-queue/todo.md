@@ -11,9 +11,9 @@
 - [x] Add automatic cleanup on hardcoverId update
 
 ## Phase 3: API Modifications
-- [ ] Update GET /api/missing/hardcover to use queue
-- [ ] Add processingId claim/release logic
-- [ ] Update response format with metadata
+- [x] Update GET /api/missing/hardcover to use queue
+- [x] Add processingId claim/release logic
+- [x] Update response format with metadata
 
 ## Phase 4: Admin Endpoints
 - [ ] Create POST /api/admin/hardcover-queue/reset

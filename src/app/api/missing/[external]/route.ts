@@ -1,7 +1,7 @@
 import { Author, db, Prisma } from "@/server/db";
 import { NextRequest,NextResponse } from "next/server";
 import { ExternalId, MissingInfo, MissingPostBody, MissingPostResponse, MissingResponse } from "../../../../../types/missing";
-import { removeBookFromQueue } from "@/server/hardcoverQueue";
+import { removeBookFromQueue, claimBooks } from "@/server/hardcoverQueue";
 
 type Params = {
     params: Promise<{
@@ -11,6 +11,51 @@ type Params = {
 
 export async function GET(req: NextRequest, { params }: Params): Promise<NextResponse<MissingResponse>> {
     const p = await params;
+
+    // For hardcover, use the new queue system
+    if (p.external === 'hardcover') {
+        const previousProcessingId = req.nextUrl.searchParams.get('previousProcessingId') || undefined;
+
+        try {
+            const { books, processingId, remainingUnclaimed } = await claimBooks(previousProcessingId, 100);
+
+            // Map books to MissingInfo format
+            const missing: MissingInfo[] = books.map(book => ({
+                editionId: book.editions[0]?.id || '',
+                bookId: book.id,
+                title: book.title,
+                authors: book.authors.map(a => ({
+                    id: a.id,
+                    name: a.name,
+                    hardcoverId: a.hardcoverId ?? null,
+                    openLibraryId: a.openLibraryId ?? null,
+                    goodReadsId: a.goodReadsId ?? null,
+                    hardcoverSlug: a.hardcoverSlug ?? null,
+                })),
+                isbn13: book.editions[0]?.isbn13 || '',
+                bookGoodReadsId: book.goodReadsId ?? null,
+                bookOpenLibraryId: book.openLibraryId ?? null,
+                bookHardcoverId: book.hardcoverId ?? null,
+                bookHardcoverSlug: book.hardcoverSlug ?? null,
+            }));
+
+            return NextResponse.json({
+                status: 'ok',
+                missing,
+                total: remainingUnclaimed + missing.length,
+                processingId,
+                remainingUnclaimed
+            });
+        } catch (error) {
+            console.error('Error claiming books from queue:', error);
+            return NextResponse.json({
+                status: 'error',
+                message: 'Failed to claim books from queue',
+            }, {status: 500});
+        }
+    }
+
+    // Legacy code for non-hardcover external IDs
     const skip = parseInt(req.nextUrl.searchParams.get('skip') || '0', 10);
     if (isNaN(skip) || skip < 0) {
         return NextResponse.json({
@@ -23,7 +68,7 @@ export async function GET(req: NextRequest, { params }: Params): Promise<NextRes
         externalId = 'openLibraryId';
     } else if (p.external === 'goodreads') {
         externalId = 'goodReadsId';
-    } else if (p.external !== 'hardcover') {
+    } else {
         return NextResponse.json({
             status: 'error',
             message: 'Invalid external ID type',
