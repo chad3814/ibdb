@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface AuthorDuplicate {
   id: string;
@@ -10,7 +10,16 @@ interface AuthorDuplicate {
   author2Name: string;
   score: number;
   confidence: string;
-  matchReasons: any;
+  matchReasons: {
+    exactMatch?: boolean;
+    nameFlipped?: boolean;
+    normalizedMatch?: boolean;
+    fuzzyMatch?: number;
+    phoneticMatch?: boolean;
+    initialsMatch?: boolean;
+    missingMiddle?: boolean;
+    sharedExternalIds?: string[];
+  };
   status: string;
   author1: {
     id: string;
@@ -59,11 +68,6 @@ export default function AdminDuplicatesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [merging, setMerging] = useState(false);
 
-  useEffect(() => {
-    fetchStats();
-    fetchDuplicates();
-  }, [filter]);
-
   const fetchStats = async () => {
     try {
       const res = await fetch('/api/admin/duplicates/stats');
@@ -74,7 +78,7 @@ export default function AdminDuplicatesPage() {
     }
   };
 
-  const fetchDuplicates = async () => {
+  const fetchDuplicates = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -90,7 +94,12 @@ export default function AdminDuplicatesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    fetchStats();
+    fetchDuplicates();
+  }, [fetchDuplicates]);
 
   const runScan = async (scanType: string) => {
     setScanning(true);

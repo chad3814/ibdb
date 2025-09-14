@@ -25,7 +25,22 @@ export async function POST(request: NextRequest) {
 
     const detector = new AuthorDuplicateDetector();
     const startTime = Date.now();
-    let duplicates: any[] = [];
+    let duplicates: Array<{
+      author1: { id: string; name: string };
+      author2: { id: string; name: string };
+      score: number;
+      matchReasons: {
+        exactMatch?: boolean;
+        nameFlipped?: boolean;
+        normalizedMatch?: boolean;
+        fuzzyMatch?: number;
+        phoneticMatch?: boolean;
+        initialsMatch?: boolean;
+        missingMiddle?: boolean;
+        sharedExternalIds?: string[];
+      };
+      confidence: string;
+    }> = [];
     let totalAuthors = 0;
 
     try {

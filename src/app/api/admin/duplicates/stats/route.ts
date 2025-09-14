@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/server/db';
 
 // GET /api/admin/duplicates/stats
 // Get duplicate detection statistics
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Get counts by status
     const [
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
         merged: mergedCount,
         dismissed: dismissedCount
       },
-      confidence: confidenceDistribution.reduce((acc: any, item) => {
+      confidence: confidenceDistribution.reduce((acc: Record<string, number>, item) => {
         acc[item.confidence] = item._count;
         return acc;
       }, {}),

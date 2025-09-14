@@ -3,47 +3,48 @@
 import { AuthorDuplicateDetector } from './authorDuplicateDetector';
 
 // Test cases for duplicate detection
+const now = new Date();
 const testAuthors = [
     // Exact duplicates (different casing/spacing)
-    { id: '1', name: 'Stephen King', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '2', name: 'stephen king', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '3', name: 'Stephen  King', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    
+    { id: '1', name: 'Stephen King', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '2', name: 'stephen king', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '3', name: 'Stephen  King', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+
     // Lastname, Firstname format
-    { id: '4', name: 'King, Stephen', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '5', name: 'Tolkien, J.R.R.', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '6', name: 'J.R.R. Tolkien', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    
+    { id: '4', name: 'King, Stephen', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '5', name: 'Tolkien, J.R.R.', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '6', name: 'J.R.R. Tolkien', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+
     // Initials vs full names
-    { id: '7', name: 'J.K. Rowling', goodReadsId: '1077326', openLibraryId: null, hardcoverId: null },
-    { id: '8', name: 'Joanne Kathleen Rowling', goodReadsId: '1077326', openLibraryId: null, hardcoverId: null },
-    { id: '9', name: 'J K Rowling', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    
+    { id: '7', name: 'J.K. Rowling', goodReadsId: '1077326', openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '8', name: 'Joanne Kathleen Rowling', goodReadsId: '1077326', openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '9', name: 'J K Rowling', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+
     // Missing middle names
-    { id: '10', name: 'Stephen Edwin King', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '11', name: 'George R.R. Martin', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '12', name: 'George R. R. Martin', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '13', name: 'George Martin', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    
+    { id: '10', name: 'Stephen Edwin King', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '11', name: 'George R.R. Martin', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '12', name: 'George R. R. Martin', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '13', name: 'George Martin', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+
     // Typos and variations
-    { id: '14', name: 'Steven King', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '15', name: 'J.R.R Tolkien', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    
+    { id: '14', name: 'Steven King', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '15', name: 'J.R.R Tolkien', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+
     // Different authors (should not match)
-    { id: '16', name: 'Martin George', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '17', name: 'Stephen Hawking', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '18', name: 'George Orwell', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    
+    { id: '16', name: 'Martin George', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '17', name: 'Stephen Hawking', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '18', name: 'George Orwell', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+
     // Edge cases
-    { id: '19', name: 'Lee, Harper', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '20', name: 'Harper Lee', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '21', name: 'Léon, Donna', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '22', name: 'Donna Leon', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    
+    { id: '19', name: 'Lee, Harper', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '20', name: 'Harper Lee', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '21', name: 'Léon, Donna', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '22', name: 'Donna Leon', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+
     // Complex names
-    { id: '23', name: 'Gabriel García Márquez', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '24', name: 'Garcia Marquez, Gabriel', goodReadsId: null, openLibraryId: null, hardcoverId: null },
-    { id: '25', name: 'Gabriel Garcia Marquez', goodReadsId: null, openLibraryId: null, hardcoverId: null },
+    { id: '23', name: 'Gabriel García Márquez', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '24', name: 'Garcia Marquez, Gabriel', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
+    { id: '25', name: 'Gabriel Garcia Marquez', goodReadsId: null, openLibraryId: null, hardcoverId: null, hardcoverSlug: null, createdAt: now, updatedAt: now },
 ];
 
 function runTests() {
@@ -52,23 +53,40 @@ function runTests() {
     console.log('🧪 Testing Author Duplicate Detection Algorithm\n');
     console.log('=' .repeat(80));
     
-    const allDuplicates: any[] = [];
-    const expectedMatches = new Map<string, string[]>([
-        ['Stephen King', ['1', '2', '3', '4', '10', '14']],
-        ['J.R.R. Tolkien', ['5', '6', '15']],
-        ['J.K. Rowling', ['7', '8', '9']],
-        ['George R.R. Martin', ['11', '12', '13']],
-        ['Harper Lee', ['19', '20']],
-        ['Donna Leon', ['21', '22']],
-        ['Gabriel García Márquez', ['23', '24', '25']],
-    ]);
+    interface DuplicateResult {
+        author1: { id: string; name: string };
+        author2: { id: string; name: string };
+        score: number;
+        matchReasons: {
+            exactMatch?: boolean;
+            nameFlipped?: boolean;
+            normalizedMatch?: boolean;
+            fuzzyMatch?: number;
+            phoneticMatch?: boolean;
+            initialsMatch?: boolean;
+            missingMiddle?: boolean;
+            sharedExternalIds?: string[];
+        };
+        confidence: string;
+    }
+    const allDuplicates: DuplicateResult[] = [];
+    // Expected matches for testing (commented out as not currently used)
+    // const expectedMatches = new Map<string, string[]>([
+    //     ['Stephen King', ['1', '2', '3', '4', '10', '14']],
+    //     ['J.R.R. Tolkien', ['5', '6', '15']],
+    //     ['J.K. Rowling', ['7', '8', '9']],
+    //     ['George R.R. Martin', ['11', '12', '13']],
+    //     ['Harper Lee', ['19', '20']],
+    //     ['Donna Leon', ['21', '22']],
+    //     ['Gabriel García Márquez', ['23', '24', '25']],
+    // ]);
     
     // Test all pairs
     for (let i = 0; i < testAuthors.length; i++) {
         for (let j = i + 1; j < testAuthors.length; j++) {
             const author1 = testAuthors[i];
             const author2 = testAuthors[j];
-            const result = detector.compareAuthors(author1 as any, author2 as any);
+            const result = detector.compareAuthors(author1, author2);
             
             if (result && result.score >= 70) {
                 allDuplicates.push(result);
