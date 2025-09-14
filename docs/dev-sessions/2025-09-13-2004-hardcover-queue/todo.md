@@ -6,9 +6,9 @@
 - [x] Create population script for existing books
 
 ## Phase 2: Core Queue Logic
-- [ ] Create hardcoverQueue service module
-- [ ] Integrate queue with book creation
-- [ ] Add automatic cleanup on hardcoverId update
+- [x] Create hardcoverQueue service module
+- [x] Integrate queue with book creation
+- [x] Add automatic cleanup on hardcoverId update
 
 ## Phase 3: API Modifications
 - [ ] Update GET /api/missing/hardcover to use queue

@@ -3,6 +3,7 @@ import { db, Author, Binding, Image as DbImage } from "./db";
 import { FullBook, getApiBook } from "@/apiConvert";
 import sizeOf from 'image-size';
 import { Book, Edition } from "../../prisma/client";
+import { addBookToQueue } from "./hardcoverQueue";
 
 type IsbnDbSearchBook = {
     title: string;
@@ -145,6 +146,14 @@ async function saveIsbndbBook(isbnBook: IsbnDbSearchBook): Promise<FullBook> {
 
                 if (!newBook) {
                     throw new Error('failed to create book');
+                }
+
+                // Add new book to HardcoverQueue (since it won't have hardcoverId)
+                try {
+                    await addBookToQueue(newBook.id);
+                } catch (error) {
+                    console.warn('Failed to add book to HardcoverQueue:', error);
+                    // Don't fail the book creation if queue addition fails
                 }
                 newEdition = newBook.editions[0];
                 if (!newEdition) {

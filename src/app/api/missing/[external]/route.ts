@@ -1,6 +1,7 @@
 import { Author, db, Prisma } from "@/server/db";
 import { NextRequest,NextResponse } from "next/server";
 import { ExternalId, MissingInfo, MissingPostBody, MissingPostResponse, MissingResponse } from "../../../../../types/missing";
+import { removeBookFromQueue } from "@/server/hardcoverQueue";
 
 type Params = {
     params: Promise<{
@@ -177,6 +178,16 @@ export async function POST(req: NextRequest): Promise<NextResponse<MissingPostRe
             status: 'error',
             message: 'Book not found',
         }, {status: 404});
+    }
+
+    // If hardcoverId was set, remove book from queue
+    if (body.book.hardcoverId !== undefined && body.book.hardcoverId !== null) {
+        try {
+            await removeBookFromQueue(body.book.id);
+        } catch (error) {
+            console.warn('Failed to remove book from HardcoverQueue:', error);
+            // Don't fail the update if queue removal fails
+        }
     }
 
     const authorPromises: Promise<Author>[] = [];
