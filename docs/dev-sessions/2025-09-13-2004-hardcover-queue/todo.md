@@ -16,9 +16,9 @@
 - [x] Update response format with metadata
 
 ## Phase 4: Admin Endpoints
-- [ ] Create POST /api/admin/hardcover-queue/reset
-- [ ] Create DELETE /api/admin/hardcover-queue/claims/[processingId]
-- [ ] Create POST /api/admin/hardcover-queue/cleanup
+- [x] Create POST /api/admin/hardcover-queue/reset
+- [x] Create DELETE /api/admin/hardcover-queue/claims/[processingId]
+- [x] Create POST /api/admin/hardcover-queue/cleanup
 
 ## Phase 5: Testing & Integration
 - [ ] Create test suite for queue operations
