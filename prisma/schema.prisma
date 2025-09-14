@@ -37,6 +37,7 @@ model Book {
   editions      Edition[]
 
   queries BookQuery[]
+  hardcoverQueue HardcoverQueue?
   @@index([title])
 }
 
@@ -221,8 +222,21 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@index([userId])
+}
+
+// Hardcover processing queue
+model HardcoverQueue {
+  id           String    @id @default(uuid())
+  bookId       String    @unique
+  processingId String?   // UUID assigned when claimed by a client
+  claimTime    DateTime? // Timestamp when claimed
+
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@index([processingId])
+  @@index([claimTime])
 }
