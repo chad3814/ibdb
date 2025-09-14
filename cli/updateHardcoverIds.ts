@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { MissingPostBody, MissingResponse } from '../types/missing';
-import { HardcoverQueryVariables, HardcoverContribution, queryHardcover } from './types/hardcover';
+import { HardcoverQueryVariables, HardcoverContribution, queryHardcover, HardcoverQueryResponse } from './types/hardcover';
 
 const HARDCOVER_TOKEN = process.env.HARDCOVER_TOKEN;
 if (!HARDCOVER_TOKEN) {
@@ -47,7 +47,16 @@ async function loop(processingId?: string) {
             name,
             isbn
         };
-        const {data} = await queryHardcover(variables, HARDCOVER_TOKEN!);
+        let response: HardcoverQueryResponse|undefined;
+        while (!response) {
+            try {
+                response = await queryHardcover(variables, HARDCOVER_TOKEN!);
+            } catch (error) {
+                console.error('failed to query hardcover', error);
+                await sleep(1500);
+            }
+        }
+        const {data} = response;
 
         const editions = data.editions;
         if (editions.length === 0) {
