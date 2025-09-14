@@ -142,6 +142,7 @@ export default function AdminDuplicatesPage() {
     }
   };
 
+  /** removed
   const mergeAuthors = async (duplicate: AuthorDuplicate, targetId: string) => {
     if (!confirm(`Merge ${duplicate.author1Name} and ${duplicate.author2Name}?`)) {
       return;
@@ -171,6 +172,7 @@ export default function AdminDuplicatesPage() {
       alert('Merge failed. Check console for details.');
     }
   };
+*/
 
   const toggleSelection = (id: string) => {
     const newSelected = new Set(selectedIds);
