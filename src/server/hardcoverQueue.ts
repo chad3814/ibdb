@@ -182,9 +182,9 @@ export async function addBookToQueue(bookId: string): Promise<boolean> {
       }
     });
     return true;
-  } catch (error: any) {
+  } catch (error) {
     // Handle unique constraint violation (book already in queue)
-    if (error?.code === 'P2002') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
       return false;
     }
     throw error;
