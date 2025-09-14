@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { DuplicateReviewModal } from '@/components/DuplicateReviewModal';
 
 interface AuthorDuplicate {
   id: string;
@@ -555,8 +556,24 @@ export default function AdminDuplicatesPage() {
       </div>
     </div>
 
-      {/* Review Modal */}
-      {selectedPair && (
+      {/* Enhanced Review Modal with Continuous Flow */}
+      <DuplicateReviewModal
+        initialPair={selectedPair}
+        isOpen={!!selectedPair}
+        onClose={() => {
+          setSelectedPair(null);
+          fetchDuplicates();
+          fetchStats();
+        }}
+        onComplete={() => {
+          setSelectedPair(null);
+          fetchDuplicates();
+          fetchStats();
+        }}
+      />
+
+      {/* Old Review Modal - REMOVE THIS AFTER TESTING */}
+      {false && selectedPair && (
         <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           {/* Backdrop */}
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">

@@ -11,11 +11,13 @@ export async function GET(request: NextRequest) {
     const confidence = searchParams.get('confidence');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
+    const exclude = searchParams.get('exclude'); // Support excluding specific IDs
 
     const where: {
       status: string;
       score: { gte: number };
       confidence?: string;
+      id?: { not: string };
     } = {
       status,
       score: { gte: minScore }
@@ -23,6 +25,10 @@ export async function GET(request: NextRequest) {
 
     if (confidence) {
       where.confidence = confidence;
+    }
+
+    if (exclude) {
+      where.id = { not: exclude };
     }
 
     const duplicates = await db.authorSimilarity.findMany({
