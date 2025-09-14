@@ -12,8 +12,12 @@ if (!MISSING_POST_SECRET) {
   throw new Error('MISSING_POST_SECRET is not set in the environment variables');
 }
 
-async function loop(skip: number) {
-    const missingResp = await fetch(`${HOST}/api/missing/hardcover?skip=${skip}`);
+async function loop(processingId?: string) {
+    const url = processingId
+        ? `${HOST}/api/missing/hardcover?previousProcessingId=${processingId}`
+        : `${HOST}/api/missing/hardcover`;
+
+    const missingResp = await fetch(url);
     if (!missingResp.ok) {
         throw new Error(`Failed to fetch missing hardcover IDs: ${missingResp.statusText}`);
     }
@@ -23,11 +27,13 @@ async function loop(skip: number) {
     }
     const missing = missingData.missing;
     const total = missingData.total;
+    const newProcessingId = missingData.processingId;
+    const remainingUnclaimed = missingData.remainingUnclaimed;
     if (missing.length === 0) {
         console.log('No missing hardcover IDs to update.');
-        return;
+        return { processingId: newProcessingId, updatedCount: 0, length: 0, remainingUnclaimed };
     }
-    console.log(`Found ${missing.length} missing hardcover IDs to update.`);
+    console.log(`Found ${missing.length} missing hardcover IDs to update. ${remainingUnclaimed} remaining in queue.`);
     let updatedCount = 0;
     for (const item of missing) {
         await new Promise(resolve => setTimeout(resolve, 500)); // Throttle requests to avoid hitting API limits
@@ -97,30 +103,39 @@ async function loop(skip: number) {
         console.log(`Successfully updated hardcover ID for ${title} by ${name}`);
         updatedCount++;
     }
-    return { total, updatedCount, length: missing.length};
+    return { processingId: newProcessingId, updatedCount, length: missing.length, remainingUnclaimed };
 }
 
 async function main() {
-    let skip = 0;
-    if (process.argv.length > 2) {
-        skip = parseInt(process.argv[2], 10);
-        if (isNaN(skip) || skip < 0) {
-            console.error('Invalid skip value. It should be a non-negative integer.');
-            process.exit(1);
-        }
-        console.log(`Skipping the first ${skip} missing hardcover IDs.`);
+    let processingId: string | undefined;
+
+    // Support for processingId resumption from environment or file
+    if (process.env.HARDCOVER_PROCESSING_ID) {
+        processingId = process.env.HARDCOVER_PROCESSING_ID;
+        console.log(`Resuming with processingId: ${processingId}`);
     }
-    let total = Number.MAX_SAFE_INTEGER;
-    while (skip < total) {
-        const result = await loop(skip);
+
+    let continueProcessing = true;
+    while (continueProcessing) {
+        const result = await loop(processingId);
         if (!result) {
             break;
         }
-        total = result.total;
-        const updatedCount = result.updatedCount;
-        const length = result.length;
-        skip += length - updatedCount;;
-        console.log(`Next skip value: ${skip + length - updatedCount}; total: ${total}`);
+
+        processingId = result.processingId;
+        const { updatedCount, length, remainingUnclaimed } = result;
+
+        console.log(`Processed batch: ${updatedCount}/${length} updated. ${remainingUnclaimed} books remaining in queue.`);
+
+        if (length === 0 || remainingUnclaimed === 0) {
+            console.log('No more books to process.');
+            continueProcessing = false;
+        }
+
+        // Store processingId for potential resume
+        if (processingId) {
+            console.log(`Current processingId: ${processingId}`);
+        }
     }
 }
 

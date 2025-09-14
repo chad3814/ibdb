@@ -21,7 +21,7 @@
 - [x] Create POST /api/admin/hardcover-queue/cleanup
 
 ## Phase 5: Testing & Integration
-- [ ] Create test suite for queue operations
-- [ ] Update CLI client to use processingId
-- [ ] Run full integration test
-- [ ] Update API documentation
+- [x] Create test suite for queue operations
+- [x] Update CLI client to use processingId
+- [x] Run full integration test
+- [x] Update API documentation
