@@ -37,7 +37,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (authors.length !== authorIds.length) {
-      console.error('Not all authors were found:', authors);
+      if (authors.length === 1 && authors[0].id === targetAuthorId) {
+        // assume already merged
+        return NextResponse.json({
+            status: 'success',
+        });
+      }
       return NextResponse.json(
         { error: 'Some authors not found' },
         { status: 404 }
