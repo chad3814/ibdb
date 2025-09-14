@@ -27,6 +27,7 @@ For comprehensive documentation, see the [docs/](./docs/) directory:
 
 - **[Complete Documentation](./docs/README.md)** - Overview and quick start guide
 - **[API Reference](./docs/API_REFERENCE.md)** - Detailed API documentation with examples
+- **[Component Reference](./docs/COMPONENTS.md)** - React component documentation with usage
 - **[Development Guide](./docs/DEVELOPMENT.md)** - Setup, workflow, and contribution guidelines
 - **[Deployment Guide](./docs/DEPLOYMENT.md)** - Production deployment instructions
 - **[Database Schema](./docs/DATABASE_SCHEMA.md)** - Database design and relationships
