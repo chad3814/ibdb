@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import { MissingPostBody, MissingResponse } from '../types/missing';
 import { HardcoverQueryVariables, HardcoverContribution, queryHardcover } from './types/hardcover';
-import { inspect } from 'node:util';
 
 const HARDCOVER_TOKEN = process.env.HARDCOVER_TOKEN;
 if (!HARDCOVER_TOKEN) {
@@ -47,7 +46,7 @@ async function loop(skip: number) {
             continue;
         }
         const edition = editions[0];
-        const hardcoverId = edition.id; // Assuming the ID is what you want to update
+        // const hardcoverId = edition.id; // Assuming the ID is what you want to update
         // console.log(`Updating hardcover ID for ${title} by ${name} to ${hardcoverId}`);
         // console.log(inspect(data, { depth: null, colors: true }));
 

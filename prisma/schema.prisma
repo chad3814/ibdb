@@ -96,3 +96,133 @@ model BookQuery {
 
   @@unique([query])
 }
+
+// Duplicate detection and merge tracking models
+model AuthorSimilarity {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Authors being compared
+  author1Id   String
+  author1Name String
+  author2Id   String
+  author2Name String
+  
+  // Similarity metrics
+  score       Int      // 0-100 percentage
+  confidence  String   // 'exact' | 'high' | 'medium' | 'low'
+  
+  // Match details (stored as JSON)
+  matchReasons Json    // Contains exactMatch, nameFlipped, fuzzyMatch, etc.
+  
+  // Review status
+  status      String   @default("pending") // 'pending' | 'reviewed' | 'merged' | 'dismissed'
+  reviewedAt  DateTime?
+  reviewedBy  String?  // Admin user ID
+  notes       String?  // Admin notes about the decision
+  
+  // Link to merge record if merged
+  mergeId     String?
+  merge       AuthorMerge? @relation(fields: [mergeId], references: [id])
+  
+  @@unique([author1Id, author2Id])
+  @@index([status])
+  @@index([score])
+  @@index([confidence])
+  @@index([author1Id])
+  @@index([author2Id])
+}
+
+model AuthorMerge {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  
+  // Original authors (stored for audit trail)
+  mergedAuthorIds   String[] // Array of author IDs that were merged
+  mergedAuthorNames String[] // Array of author names for reference
+  
+  // Target author (the one kept)
+  targetAuthorId    String
+  targetAuthorName  String
+  
+  // Merge details
+  mergedBy          String   // Admin user ID
+  mergeReason       String?  // Explanation for the merge
+  booksReassigned   Int      // Count of books reassigned
+  
+  // Related similarity records
+  similarities      AuthorSimilarity[]
+  
+  @@index([targetAuthorId])
+  @@index([createdAt])
+}
+
+model DuplicateScanRun {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+  
+  // Scan parameters
+  minScore    Int      @default(70)
+  scanType    String   // 'full' | 'exact' | 'flipped' | 'fuzzy'
+  
+  // Results
+  totalAuthors        Int?
+  totalComparisons    Int?
+  duplicatesFound     Int?
+  processingTimeMs    Int?
+  
+  // Status
+  status      String   @default("running") // 'running' | 'completed' | 'failed'
+  error       String?
+  
+  @@index([status])
+  @@index([createdAt])
+}
+
+// NextAuth models
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  role          String    @default("user") // 'user' | 'admin'
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
