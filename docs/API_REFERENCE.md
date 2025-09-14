@@ -105,11 +105,101 @@ GET /isbn/{isbn13}
 ```
 Server-rendered HTML page for ISBN-based book lookup.
 
+### Public API Endpoints
+
+#### List Books
+```http
+GET /api/books
+```
+
+**Parameters:**
+- `page` (number, optional): Page number for pagination
+- `limit` (number, optional): Items per page (default: 20)
+- `query` (string, optional): Search query
+
+**Response:** Paginated list of books with author information
+
+#### List Authors
+```http
+GET /api/authors
+```
+
+**Parameters:**
+- `page` (number, optional): Page number for pagination
+- `limit` (number, optional): Items per page (default: 20)
+- `search` (string, optional): Search query
+- `letter` (string, optional): Filter by first letter
+
+**Response:** Paginated list of authors
+
+#### Get Author by ID
+```http
+GET /api/authors/{id}
+```
+
+**Parameters:**
+- `id` (string, required): Author ID
+
+**Response:** Author details with bibliography
+
 ### Administrative API
+
+#### Duplicate Detection
+
+##### List Duplicate Pairs
+```http
+GET /api/admin/duplicates
+```
+
+**Parameters:**
+- `status` (string, optional): Filter by status (pending/reviewed/merged/dismissed)
+- `minScore` (number, optional): Minimum similarity score (default: 70)
+- `confidence` (string, optional): Filter by confidence level
+
+**Response:** List of potential duplicate author pairs
+
+##### Run Detection Scan
+```http
+POST /api/admin/duplicates/detect
+```
+
+**Body:**
+```json
+{
+  "scanType": "exact|flipped|fuzzy|full",
+  "minScore": 70,
+  "limit": 100
+}
+```
+
+**Response:** Scan status and results
+
+##### Merge Duplicates
+```http
+POST /api/admin/duplicates/merge
+```
+
+**Body:**
+```json
+{
+  "duplicateId": "similarity-record-id",
+  "targetAuthorId": "author-to-keep",
+  "sourceAuthorIds": ["authors-to-merge"]
+}
+```
+
+**Response:** Merge confirmation and statistics
+
+##### Get Statistics
+```http
+GET /api/admin/duplicates/stats
+```
+
+**Response:** Duplicate detection statistics and recent activity
 
 #### List Missing External IDs
 ```http
-GET /missing/{service}
+GET /api/missing/{service}
 ```
 
 **Parameters:**
@@ -119,17 +209,6 @@ GET /missing/{service}
 
 **Response:**
 Returns list of books missing external service IDs.
-
-#### Update External IDs
-```http
-POST /missing/{service}
-```
-
-**Parameters:**
-- `service` (string): External service name
-- Request body: External ID mapping data
-
-**Authentication:** Required
 
 ## Data Types
 

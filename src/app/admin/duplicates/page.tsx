@@ -156,7 +156,7 @@ export default function AdminDuplicatesPage() {
           similarityIds: [duplicate.id]
         })
       });
-      
+
       const data = await res.json();
       if (data.status === 'success') {
         alert(`Successfully merged! ${data.booksReassigned} books reassigned.`);
@@ -190,7 +190,7 @@ export default function AdminDuplicatesPage() {
 
   const mergeAllSelected = async () => {
     const selectedDuplicates = duplicates.filter(d => selectedIds.has(d.id));
-    
+
     if (selectedDuplicates.length === 0) {
       alert('No duplicates selected');
       return;
@@ -217,7 +217,7 @@ export default function AdminDuplicatesPage() {
             similarityIds: [duplicate.id]
           })
         });
-        
+
         const data = await res.json();
         if (data.status === 'success') {
           successCount++;
@@ -312,10 +312,11 @@ export default function AdminDuplicatesPage() {
             <div className="flex flex-wrap gap-4 items-end flex-1">
               <div className="min-w-[120px]">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select 
+                <select
                   value={filter.status}
                   onChange={(e) => setFilter({...filter, status: e.target.value})}
                   className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  title='Status'
                 >
                   <option value="pending">Pending</option>
                   <option value="reviewed">Reviewed</option>
@@ -323,7 +324,7 @@ export default function AdminDuplicatesPage() {
                   <option value="dismissed">Dismissed</option>
                 </select>
               </div>
-              
+
               <div className="min-w-[100px]">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Min Score</label>
                 <input
@@ -333,15 +334,17 @@ export default function AdminDuplicatesPage() {
                   className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   min="0"
                   max="100"
+                  title="Min Score"
                 />
               </div>
 
               <div className="min-w-[120px]">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Confidence</label>
-                <select 
+                <select
                   value={filter.confidence}
                   onChange={(e) => setFilter({...filter, confidence: e.target.value})}
                   className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  title='Confidence'
                 >
                   <option value="">All</option>
                   <option value="exact">Exact</option>
@@ -449,6 +452,7 @@ export default function AdminDuplicatesPage() {
                         checked={selectedIds.size === duplicates.length && duplicates.length > 0}
                         onChange={selectAll}
                         className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500"
+                        title='Select All'
                       />
                     </th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 uppercase tracking-wider">Author 1</th>
@@ -468,6 +472,7 @@ export default function AdminDuplicatesPage() {
                           checked={selectedIds.has(dup.id)}
                           onChange={() => toggleSelection(dup.id)}
                           className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500"
+                          title={`${dup.author1Name} and ${dup.author2Name}`}
                         />
                       </td>
                       <td className="px-6 py-4">
@@ -555,14 +560,14 @@ export default function AdminDuplicatesPage() {
         <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           {/* Backdrop */}
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div 
-              className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" 
+            <div
+              className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity"
               onClick={() => setSelectedPair(null)}
             ></div>
 
             {/* Modal positioning */}
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            
+
             {/* Modal panel */}
             <div className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
               {/* Header */}
@@ -575,6 +580,7 @@ export default function AdminDuplicatesPage() {
                   <button
                     onClick={() => setSelectedPair(null)}
                     className="rounded-md bg-white text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 p-1 transition-colors"
+                    title="Merge"
                   >
                     <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -633,7 +639,7 @@ export default function AdminDuplicatesPage() {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="mb-4">
                       <div className="flex items-center mb-2">
                         <svg className="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -657,7 +663,7 @@ export default function AdminDuplicatesPage() {
                         </div>
                       )}
                     </div>
-                    
+
                     <button
                       onClick={() => mergeAuthors(selectedPair, selectedPair.author1Id)}
                       disabled={selectedPair.author1?.deleted}
@@ -683,7 +689,7 @@ export default function AdminDuplicatesPage() {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="mb-4">
                       <div className="flex items-center mb-2">
                         <svg className="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -707,7 +713,7 @@ export default function AdminDuplicatesPage() {
                         </div>
                       )}
                     </div>
-                    
+
                     <button
                       onClick={() => mergeAuthors(selectedPair, selectedPair.author2Id)}
                       disabled={selectedPair.author2?.deleted}

@@ -8,28 +8,52 @@ IBDB (Internet Book Database) is a Next.js application that serves as a book met
 
 ```
 ibdb/
-├── src/                    # Source code
-│   ├── app/                # Next.js App Router pages and API routes
-│   │   ├── book/           # Book detail pages
-│   │   ├── book-json/      # Book JSON API endpoints
-│   │   ├── isbn/           # ISBN lookup pages
-│   │   ├── isbn-json/      # ISBN JSON API endpoints
-│   │   ├── search/         # Search API endpoint
-│   │   └── missing/        # Admin endpoints for external ID management
-│   ├── server/             # Server-side utilities and database
-│   │   ├── db.ts           # Database client and utilities
-│   │   └── isbndb.ts       # ISBNdb API integration
-│   ├── api.d.ts            # TypeScript API type definitions
-│   └── apiConvert.ts       # Data conversion utilities
-├── prisma/                 # Database schema and migrations
-│   ├── schema.prisma       # Database schema definition
-│   ├── migrations/         # Database migration history
-│   └── client/             # Generated Prisma client
-├── cli/                    # Command-line utilities
-│   └── updateHardcoverIds.ts # CLI tool for Hardcover ID updates
-├── types/                  # TypeScript type definitions
-├── public/                 # Static assets
-└── docs/                   # Project documentation
+├── src/                        # Source code
+│   ├── app/                    # Next.js App Router
+│   │   ├── api/                # API routes
+│   │   │   ├── admin/          # Admin endpoints
+│   │   │   │   └── duplicates/ # Duplicate detection
+│   │   │   ├── authors/        # Author endpoints
+│   │   │   ├── books/          # Book endpoints
+│   │   │   ├── search/         # Search endpoint
+│   │   │   ├── book-json/      # Book JSON API
+│   │   │   ├── isbn-json/      # ISBN JSON API
+│   │   │   └── missing/        # External ID management
+│   │   ├── admin/              # Admin UI pages
+│   │   │   └── duplicates/     # Duplicate management UI
+│   │   ├── author/[id]/        # Author profile pages
+│   │   ├── book/[id]/          # Book detail pages
+│   │   ├── isbn/[isbn]/        # ISBN lookup pages
+│   │   ├── authors/            # Authors listing page
+│   │   ├── books/              # Books search page
+│   │   └── page.tsx            # Home page
+│   ├── components/             # React components
+│   │   ├── AuthorDetail.tsx    # Author profile
+│   │   ├── AuthorsList.tsx     # Authors list
+│   │   ├── BookCard.tsx        # Book card
+│   │   ├── BookGrid.tsx        # Books grid
+│   │   ├── SearchForm.tsx      # Search form
+│   │   ├── SearchResults.tsx   # Search results
+│   │   └── LoadingSpinner.tsx  # Loading indicator
+│   ├── hooks/                  # Custom React hooks
+│   │   ├── useInfiniteScroll.ts
+│   │   └── useAuthorsInfiniteScroll.ts
+│   ├── lib/                    # Utility libraries
+│   │   ├── authorDuplicateDetector.ts
+│   │   └── testDuplicateDetection.ts
+│   ├── server/                 # Server utilities
+│   │   ├── db.ts               # Database client
+│   │   └── isbndb.ts           # ISBNdb API
+│   ├── types/                  # TypeScript types
+│   │   └── home.ts             # Home page types
+│   ├── api.d.ts                # API type definitions
+│   └── apiConvert.ts           # Data conversion
+├── prisma/                     # Database
+│   ├── schema.prisma           # Schema definition
+│   ├── migrations/             # Migration history
+│   └── client/                 # Generated client
+├── public/                     # Static assets
+└── docs/                       # Documentation
 ```
 
 ## Core Components

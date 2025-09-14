@@ -1,6 +1,25 @@
-# IBDb - Internet Book Database
+# IBDB - Internet Book Database
 
-A Next.js-based book metadata aggregation service providing both API endpoints and web interfaces for book data lookup via ISBN and search functionality.
+A modern, performant web application for browsing and managing a comprehensive book database. Built with Next.js 15, TypeScript, Prisma, and PostgreSQL.
+
+## 🚀 Features
+
+- **Book Management**: Browse, search, and view detailed information about books
+- **Author Profiles**: Comprehensive author pages with their complete bibliography
+- **ISBN Lookup**: Direct ISBN-based book search and information retrieval
+- **Duplicate Detection**: Advanced author duplicate detection and merging system
+- **Infinite Scrolling**: Smooth, performant browsing experience for large datasets
+- **Search Functionality**: Full-text search across books and authors
+- **Admin Tools**: Duplicate management interface for data quality maintenance
+
+## 🛠 Tech Stack
+
+- **Framework**: [Next.js 15.1.3](https://nextjs.org/) with App Router
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Database**: [PostgreSQL](https://www.postgresql.org/) (via Neon)
+- **ORM**: [Prisma 6.1.0](https://www.prisma.io/)
+- **Styling**: [Tailwind CSS 3.4](https://tailwindcss.com/)
+- **Authentication**: [NextAuth.js v5](https://next-auth.js.org/)
 
 ## 📖 Documentation
 
@@ -8,7 +27,7 @@ For comprehensive documentation, see the [docs/](./docs/) directory:
 
 - **[Complete Documentation](./docs/README.md)** - Overview and quick start guide
 - **[API Reference](./docs/API_REFERENCE.md)** - Detailed API documentation with examples
-- **[Development Guide](./docs/DEVELOPMENT.md)** - Setup, workflow, and contribution guidelines  
+- **[Development Guide](./docs/DEVELOPMENT.md)** - Setup, workflow, and contribution guidelines
 - **[Deployment Guide](./docs/DEPLOYMENT.md)** - Production deployment instructions
 - **[Database Schema](./docs/DATABASE_SCHEMA.md)** - Database design and relationships
 - **[Project Structure](./docs/PROJECT_STRUCTURE.md)** - Codebase architecture overview
