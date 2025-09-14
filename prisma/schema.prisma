@@ -30,14 +30,15 @@ model Book {
   authors       Author[]
   longTitle     String?
   synopsis      String?
-  openLibraryId String?   @unique
-  goodReadsId   String?   @unique
-  hardcoverId   Int?      @unique
-  hardcoverSlug   String?
+  openLibraryId String?
+  goodReadsId   String?
+  hardcoverId   Int?
+  hardcoverSlug String?
   editions      Edition[]
 
-  queries BookQuery[]
+  queries        BookQuery[]
   hardcoverQueue HardcoverQueue?
+
   @@index([title])
 }
 
@@ -69,7 +70,7 @@ model Author {
   openLibraryId String?  @unique
   goodReadsId   String?  @unique
   hardcoverId   Int?     @unique
-  hardcoverSlug   String?
+  hardcoverSlug String?
 
   books Book[]
 
@@ -100,33 +101,33 @@ model BookQuery {
 
 // Duplicate detection and merge tracking models
 model AuthorSimilarity {
-  id          String   @id @default(uuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Authors being compared
   author1Id   String
   author1Name String
   author2Id   String
   author2Name String
-  
+
   // Similarity metrics
-  score       Int      // 0-100 percentage
-  confidence  String   // 'exact' | 'high' | 'medium' | 'low'
-  
+  score      Int // 0-100 percentage
+  confidence String // 'exact' | 'high' | 'medium' | 'low'
+
   // Match details (stored as JSON)
-  matchReasons Json    // Contains exactMatch, nameFlipped, fuzzyMatch, etc.
-  
+  matchReasons Json // Contains exactMatch, nameFlipped, fuzzyMatch, etc.
+
   // Review status
-  status      String   @default("pending") // 'pending' | 'reviewed' | 'merged' | 'dismissed'
-  reviewedAt  DateTime?
-  reviewedBy  String?  // Admin user ID
-  notes       String?  // Admin notes about the decision
-  
+  status     String    @default("pending") // 'pending' | 'reviewed' | 'merged' | 'dismissed'
+  reviewedAt DateTime?
+  reviewedBy String? // Admin user ID
+  notes      String? // Admin notes about the decision
+
   // Link to merge record if merged
-  mergeId     String?
-  merge       AuthorMerge? @relation(fields: [mergeId], references: [id])
-  
+  mergeId String?
+  merge   AuthorMerge? @relation(fields: [mergeId], references: [id])
+
   @@unique([author1Id, author2Id])
   @@index([status])
   @@index([score])
@@ -136,48 +137,48 @@ model AuthorSimilarity {
 }
 
 model AuthorMerge {
-  id          String   @id @default(uuid())
-  createdAt   DateTime @default(now())
-  
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
   // Original authors (stored for audit trail)
   mergedAuthorIds   String[] // Array of author IDs that were merged
   mergedAuthorNames String[] // Array of author names for reference
-  
+
   // Target author (the one kept)
-  targetAuthorId    String
-  targetAuthorName  String
-  
+  targetAuthorId   String
+  targetAuthorName String
+
   // Merge details
-  mergedBy          String   // Admin user ID
-  mergeReason       String?  // Explanation for the merge
-  booksReassigned   Int      // Count of books reassigned
-  
+  mergedBy        String // Admin user ID
+  mergeReason     String? // Explanation for the merge
+  booksReassigned Int // Count of books reassigned
+
   // Related similarity records
-  similarities      AuthorSimilarity[]
-  
+  similarities AuthorSimilarity[]
+
   @@index([targetAuthorId])
   @@index([createdAt])
 }
 
 model DuplicateScanRun {
-  id          String   @id @default(uuid())
-  createdAt   DateTime @default(now())
+  id          String    @id @default(uuid())
+  createdAt   DateTime  @default(now())
   completedAt DateTime?
-  
+
   // Scan parameters
-  minScore    Int      @default(70)
-  scanType    String   // 'full' | 'exact' | 'flipped' | 'fuzzy'
-  
+  minScore Int    @default(70)
+  scanType String // 'full' | 'exact' | 'flipped' | 'fuzzy'
+
   // Results
-  totalAuthors        Int?
-  totalComparisons    Int?
-  duplicatesFound     Int?
-  processingTimeMs    Int?
-  
+  totalAuthors     Int?
+  totalComparisons Int?
+  duplicatesFound  Int?
+  processingTimeMs Int?
+
   // Status
-  status      String   @default("running") // 'running' | 'completed' | 'failed'
-  error       String?
-  
+  status String  @default("running") // 'running' | 'completed' | 'failed'
+  error  String?
+
   @@index([status])
   @@index([createdAt])
 }
@@ -192,9 +193,9 @@ model User {
   role          String    @default("user") // 'user' | 'admin'
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  
-  accounts      Account[]
-  sessions      Session[]
+
+  accounts Account[]
+  sessions Session[]
 }
 
 model Account {
@@ -210,9 +211,9 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@unique([provider, providerAccountId])
   @@index([userId])
 }
@@ -232,7 +233,7 @@ model Session {
 model HardcoverQueue {
   id           String    @id @default(uuid())
   bookId       String    @unique
-  processingId String?   // UUID assigned when claimed by a client
+  processingId String? // UUID assigned when claimed by a client
   claimTime    DateTime? // Timestamp when claimed
 
   book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
