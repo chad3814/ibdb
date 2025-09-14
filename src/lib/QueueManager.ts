@@ -1,9 +1,15 @@
 export type QueueOperationType = 'merge' | 'dismiss' | 'reviewed';
 
+export interface QueueOperationData {
+  duplicate?: unknown;
+  targetAuthorId?: string;
+  [key: string]: unknown;
+}
+
 export interface QueueOperation {
   id: string;
   type: QueueOperationType;
-  data: any;
+  data: QueueOperationData;
   timestamp: number;
   status: 'pending' | 'executing' | 'executed' | 'cancelled' | 'failed';
   error?: string;
@@ -36,7 +42,7 @@ export class QueueManager {
   /**
    * Enqueue an operation for delayed execution
    */
-  enqueue(type: QueueOperationType, data: any): QueueOperation {
+  enqueue(type: QueueOperationType, data: QueueOperationData): QueueOperation {
     const operation: QueueOperation = {
       id: `queue-op-${++this.operationCounter}`,
       type,

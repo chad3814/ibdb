@@ -14,7 +14,6 @@ interface DuplicateReviewModalProps {
 }
 
 export function DuplicateReviewModal({
-  initialPair,
   isOpen,
   onClose,
   onComplete
@@ -64,7 +63,7 @@ export function DuplicateReviewModal({
   useEffect(() => {
     if (queuedOperation && queuedOperation.status === 'pending') {
       queueManager.enqueue(
-        queuedOperation.type as any,
+        queuedOperation.type as ('merge' | 'dismiss' | 'reviewed'),
         {
           duplicate: queuedOperation.duplicate,
           targetAuthorId: queuedOperation.targetAuthorId
@@ -79,6 +78,13 @@ export function DuplicateReviewModal({
       loadInitialPair();
     }
   }, [isOpen, currentPair, isLoading, loadInitialPair]);
+
+  const handleClose = useCallback(async () => {
+    // Execute any pending operations
+    await queueManager.executeAll();
+    await closeModal();
+    onClose();
+  }, [queueManager, closeModal, onClose]);
 
   // Keyboard event handler
   useEffect(() => {
@@ -136,15 +142,9 @@ export function DuplicateReviewModal({
     skip,
     markNotDuplicates,
     markReviewed,
-    goBack
+    goBack,
+    handleClose
   ]);
-
-  const handleClose = useCallback(async () => {
-    // Execute any pending operations
-    await queueManager.executeAll();
-    await closeModal();
-    onClose();
-  }, [queueManager, closeModal, onClose]);
 
   // Handle completion
   useEffect(() => {
