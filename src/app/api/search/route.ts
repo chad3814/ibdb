@@ -64,6 +64,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SearchResult>>
             books
         });
     } catch (err) {
+        console.error(`search threw an error:`, err);
         return NextResponse.json({
             status: 'error',
             message: (err as unknown as Error).message
