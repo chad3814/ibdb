@@ -251,7 +251,7 @@ export async function search(q: string): Promise<ApiBook[]> {
     }
 
     const books: ApiBook[] = []
-    for (const isbnBook of isbndbBooks.books) {
+    for (const isbnBook of isbndbBooks.books ?? []) {
         const book = await saveIsbndbBook(isbnBook);
         books.push(getApiBook(book));
     }
