@@ -331,8 +331,8 @@ export async function lookupByIsbn13(isbn13: string): Promise<FullBook|null> {
         throw new Error('ISBNDb Error');
     }
     const isbnBook = await res.json() as IsbnDbIsbnLookupRes;
-    if (!isbnBook) {
-        throw new Error('failed to get json');
+    if (!isbnBook?.book) {
+        return null; // no book found in response
     }
 
     const book = await saveIsbndbBook(isbnBook.book);

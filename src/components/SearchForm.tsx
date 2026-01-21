@@ -87,10 +87,9 @@ export default function SearchForm() {
                                 id="isbn-search"
                                 type="text"
                                 value={isbn}
-                                onChange={(e) => setIsbn(e.target.value)}
+                                onChange={(e) => setIsbn(e.target.value.replace(/\D/g, '').slice(0, 13))}
                                 placeholder="Enter 13-digit ISBN"
                                 className={styles.input}
-                                maxLength={13}
                                 disabled={loading}
                             />
                             <button
