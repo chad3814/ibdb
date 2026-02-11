@@ -1,5 +1,6 @@
 import { getApiBook } from "@/apiConvert";
 import BookDetail from "@/app/book";
+import { stripHtmlTags } from "@/lib/sanitizeSynopsis";
 import { db } from "@/server/db";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -39,12 +40,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     
     return {
         title: `${title} by ${authors} - IBDb`,
-        description: apiBook.synopsis 
-            ? apiBook.synopsis.substring(0, 160) + '...' 
+        description: apiBook.synopsis
+            ? stripHtmlTags(apiBook.synopsis).substring(0, 160) + '...'
             : `${title} by ${authors}. Find book details, publication information, and more on IBDb.`,
         openGraph: {
             title: title,
-            description: apiBook.synopsis || `${title} by ${authors}`,
+            description: apiBook.synopsis ? stripHtmlTags(apiBook.synopsis) : `${title} by ${authors}`,
             images: apiBook.image ? [{
                 url: apiBook.image.url,
                 width: apiBook.image.width,
@@ -56,7 +57,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         twitter: {
             card: 'summary_large_image',
             title: title,
-            description: apiBook.synopsis || `${title} by ${authors}`,
+            description: apiBook.synopsis ? stripHtmlTags(apiBook.synopsis) : `${title} by ${authors}`,
             images: apiBook.image ? [apiBook.image.url] : [],
         },
         other: {

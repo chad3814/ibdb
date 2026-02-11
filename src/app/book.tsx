@@ -1,6 +1,7 @@
 'use client';
 
 import { ApiBook } from "@/api";
+import { sanitizeSynopsis } from "@/lib/sanitizeSynopsis";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -200,7 +201,7 @@ export default function BookDetail({ book }: Props) {
                         {book.synopsis && (
                             <section className={styles.synopsis} aria-labelledby="synopsis-heading">
                                 <h2 id="synopsis-heading" className={styles.sectionTitle}>Synopsis</h2>
-                                <div className={styles.synopsisText}>{book.synopsis}</div>
+                                <div className={styles.synopsisText} dangerouslySetInnerHTML={{ __html: sanitizeSynopsis(book.synopsis) }} />
                             </section>
                         )}
                         

@@ -1,5 +1,6 @@
 'use client';
 
+import { sanitizeSynopsis } from '@/lib/sanitizeSynopsis';
 import { BookCardProps } from '@/types/home';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -62,9 +63,7 @@ export default function BookCard({ book }: BookCardProps) {
                     )}
                     
                     {book.synopsis && (
-                        <p className={styles.synopsis}>
-                            {book.synopsis}
-                        </p>
+                        <div className={styles.synopsis} dangerouslySetInnerHTML={{ __html: sanitizeSynopsis(book.synopsis) }} />
                     )}
                     
                     <div className={styles.metadata}>
