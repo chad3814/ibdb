@@ -1,8 +1,7 @@
 import { ApiBook } from "@/api";
 import { getApiBook } from "@/apiConvert";
 import { db } from "@/server/db";
-import { search as searchIsbnDb } from "@/server/isbndb";
-import { search as searchRainforest } from "@/server/rainforest";
+import { search } from "@/server/isbndb";
 import { NextRequest, NextResponse } from "next/server";
 
 type SearchResultSuccess = {
@@ -59,14 +58,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SearchResult>>
     }
 
     try {
-        let books = await searchIsbnDb(query);
-        if (books.length === 0) {
-            try {
-                books = await searchRainforest(query);
-            } catch (rainforestErr) {
-                console.error(`Rainforest fallback search failed:`, rainforestErr);
-            }
-        }
+        const books = await search(query);
         return NextResponse.json({
             status: 'ok',
             books
