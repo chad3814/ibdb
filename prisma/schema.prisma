@@ -58,6 +58,7 @@ model Edition {
   openLibraryId   String?  @unique
   goodReadsId     String?  @unique
   hardcoverId     Int?     @unique
+  asin            String?  @unique
 
   @@index([bookId])
 }
