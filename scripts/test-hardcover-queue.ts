@@ -10,8 +10,7 @@ import {
   releaseClaim,
   releaseOldClaims,
   cleanupCompleted,
-  addBookToQueue,
-  removeBookFromQueue
+  addBookToQueue
 } from '../src/server/hardcoverQueue';
 
 async function testQueueOperations() {

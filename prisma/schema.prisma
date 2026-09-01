@@ -89,6 +89,18 @@ model Image {
   @@unique([url])
 }
 
+/// Records an ISBN that ISBNdb has no book for, so repeat lookups of the same
+/// bad ISBN do not each cost an API request. Entries go stale after
+/// NEGATIVE_CACHE_TTL_MS and are deleted once the ISBN does resolve.
+model IsbnMiss {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isbn13    String   @unique
+
+  @@index([updatedAt])
+}
+
 model BookQuery {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())

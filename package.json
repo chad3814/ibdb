@@ -7,7 +7,10 @@
     "dev": "next dev --turbopack",
     "start": "next start",
     "vercel-build": "prisma generate && next build && prisma migrate deploy",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
