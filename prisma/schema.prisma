@@ -40,6 +40,11 @@ model Book {
   hardcoverQueue HardcoverQueue?
 
   @@index([title])
+  // NOTE: a partial index, Book_hasExternalId_createdAt_idx, also exists on
+  // ("createdAt" DESC) WHERE any external id IS NOT NULL. It backs the /api/books
+  // homepage listing. Prisma cannot express partial indexes, so it lives in the
+  // migration 20260901204525_add_homepage_partial_index instead. `prisma migrate
+  // dev` will see it as drift and offer to drop it -- do not let it.
 }
 
 model Edition {
