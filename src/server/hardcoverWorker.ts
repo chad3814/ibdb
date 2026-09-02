@@ -9,12 +9,21 @@ export type QueueBook = {
     editions: { id: string; isbn13: string }[];
 };
 
+export type LookupResult = {
+    edition: HardcoverEdition|null;
+    /** How many Hardcover requests this lookup actually spent. */
+    requests: number;
+};
+
 /**
  * The effects the batch loop needs, injected so the loop can be exercised
  * without a database, a network, or real elapsed time.
+ *
+ * `lookup` owns its own pacing, because only it knows how many requests it
+ * makes: an ISBN hit costs one, a title+author fallback costs two.
  */
 export type WorkerDeps = {
-    lookup(book: QueueBook): Promise<HardcoverEdition|null>;
+    lookup(book: QueueBook): Promise<LookupResult>;
     apply(enrichment: Enrichment): Promise<void>;
     dequeue(bookId: string): Promise<void>;
     now(): number;
@@ -23,11 +32,15 @@ export type WorkerDeps = {
 
 export type BatchOptions = {
     budgetMs: number;
-    perItemMs: number;
+    perRequestMs: number;
+    /** Hard ceiling on Hardcover requests, which is what the daily quota counts. */
+    maxRequests: number;
 };
 
 export type BatchResult = {
     processed: number;
+    /** Hardcover requests spent, which may exceed `processed` when lookups fall back. */
+    requests: number;
     enriched: number;
     noMatch: number;
     failed: number;
@@ -42,14 +55,18 @@ export type BatchResult = {
  * Books it finishes with are dequeued; whatever it does not reach stays claimed
  * for the caller to release.
  */
+/** An ISBN query, plus at most one title+author fallback. */
+const MAX_REQUESTS_PER_BOOK = 2;
+
 export async function runEnrichmentBatch(
     books: QueueBook[],
     deps: WorkerDeps,
-    { budgetMs, perItemMs }: BatchOptions
+    { budgetMs, perRequestMs, maxRequests }: BatchOptions
 ): Promise<BatchResult> {
     const startedAt = deps.now();
     const result: BatchResult = {
         processed: 0,
+        requests: 0,
         enriched: 0,
         noMatch: 0,
         failed: 0,
@@ -58,15 +75,22 @@ export async function runEnrichmentBatch(
     };
 
     for (const book of books) {
-        const elapsedMs = deps.now() - startedAt;
-        if (!hasTimeRemaining({ elapsedMs, budgetMs, nextItemMs: perItemMs })) {
+        // A book costs at most two requests, so never start one with less than
+        // two of headroom -- otherwise a fallback would overshoot the quota.
+        if (result.requests + MAX_REQUESTS_PER_BOOK > maxRequests) {
             result.stoppedEarly = true;
             break;
         }
 
-        // Pace first, so the very first request of a run does not stack on top
-        // of the tail of the previous run's requests.
-        await deps.sleep(perItemMs);
+        const elapsedMs = deps.now() - startedAt;
+        if (!hasTimeRemaining({
+            elapsedMs,
+            budgetMs,
+            nextItemMs: perRequestMs * MAX_REQUESTS_PER_BOOK,
+        })) {
+            result.stoppedEarly = true;
+            break;
+        }
 
         const edition = book.editions[0];
         if (!edition) {
@@ -78,7 +102,8 @@ export async function runEnrichmentBatch(
         }
 
         try {
-            const found = await deps.lookup(book);
+            const { edition: found, requests } = await deps.lookup(book);
+            result.requests += requests;
 
             if (!found) {
                 await deps.dequeue(book.id);

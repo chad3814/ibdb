@@ -82,31 +82,57 @@ export function parseRateLimit(headers: Headers): RateLimitState|null {
     return null;
 }
 
-const QUERY = `
-    query MyQuery($title: String, $name: String, $isbn: String) {
-        editions(
-            where: {
-                title: {_eq: $title},
-                edition_format: {_is_null: false},
-                contributions: {author: {name: {_eq: $name}}},
-                isbn_13: {_eq: $isbn}
-            }
-        ) {
-            id
-            isbn_13
-            book {
+const EDITION_FIELDS = `
+    id
+    isbn_13
+    book {
+        id
+        title
+        slug
+        contributions {
+            author {
                 id
-                title
+                name
                 slug
-                contributions {
-                    author {
-                        id
-                        name
-                        slug
-                    }
-                }
             }
         }
+    }
+`;
+
+/**
+ * Match on ISBN-13 alone. It uniquely identifies an edition, so adding a title
+ * or author equality on top can only throw away correct matches -- which is
+ * what the original combined query did, matching under 1% of the queue.
+ */
+const ISBN_QUERY = `
+    query ByIsbn($isbn: String) {
+        editions(where: {
+            isbn_13: {_eq: $isbn},
+            edition_format: {_is_null: false}
+        }) {${EDITION_FIELDS}}
+    }
+`;
+
+/** Fallback for books whose ISBN Hardcover does not know. */
+const TITLE_AUTHOR_QUERY = `
+    query ByTitleAuthor($title: String, $name: String) {
+        editions(where: {
+            title: {_eq: $title},
+            contributions: {author: {name: {_eq: $name}}},
+            edition_format: {_is_null: false}
+        }) {${EDITION_FIELDS}}
+    }
+`;
+
+/** The original conjunction, kept so cli/updateHardcoverIds.ts is unchanged. */
+const COMBINED_QUERY = `
+    query MyQuery($title: String, $name: String, $isbn: String) {
+        editions(where: {
+            title: {_eq: $title},
+            edition_format: {_is_null: false},
+            contributions: {author: {name: {_eq: $name}}},
+            isbn_13: {_eq: $isbn}
+        }) {${EDITION_FIELDS}}
     }
 `;
 
@@ -122,8 +148,9 @@ export class HardcoverRateLimitedError extends Error {
     }
 }
 
-export async function queryHardcover(
-    variables: HardcoverQueryVariables,
+async function execute(
+    query: string,
+    variables: Record<string, string|undefined>,
     token: string,
     signal?: AbortSignal
 ): Promise<HardcoverResult> {
@@ -133,7 +160,7 @@ export async function queryHardcover(
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ query: QUERY, variables }),
+        body: JSON.stringify({ query, variables }),
         signal,
     });
 
@@ -151,4 +178,29 @@ export async function queryHardcover(
         response: await response.json() as HardcoverQueryResponse,
         rateLimit,
     };
+}
+
+export function queryHardcoverByIsbn(
+    isbn: string,
+    token: string,
+    signal?: AbortSignal
+): Promise<HardcoverResult> {
+    return execute(ISBN_QUERY, { isbn }, token, signal);
+}
+
+export function queryHardcoverByTitleAuthor(
+    title: string,
+    name: string,
+    token: string,
+    signal?: AbortSignal
+): Promise<HardcoverResult> {
+    return execute(TITLE_AUTHOR_QUERY, { title, name }, token, signal);
+}
+
+export function queryHardcover(
+    variables: HardcoverQueryVariables,
+    token: string,
+    signal?: AbortSignal
+): Promise<HardcoverResult> {
+    return execute(COMBINED_QUERY, { ...variables }, token, signal);
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isCronAuthorized } from '@/lib/cronAuth';
 import { claimBooks, releaseClaim, releaseOldClaims, removeBookFromQueue } from '@/server/hardcoverQueue';
-import { queryHardcover, selectEdition } from '@/server/hardcover';
+import { queryHardcoverByIsbn, queryHardcoverByTitleAuthor, selectEdition } from '@/server/hardcover';
 import { applyEnrichment } from '@/server/hardcoverEnrich';
 import { runEnrichmentBatch, type QueueBook, type WorkerDeps } from '@/server/hardcoverWorker';
 
@@ -19,10 +19,12 @@ export const maxDuration = 60;
 // ~1,000 spare for retries. Raising the cap means raising BATCH_SIZE and
 // BUDGET_MS together, and the schedule in vercel.json.
 /** One request per second keeps a run inside the 60/minute policy. */
-const PER_ITEM_MS = 1_000;
-/** 34 books at 1s each, with room to release claims and respond. */
+const PER_REQUEST_MS = 1_000;
+/** Requests, not books: a title+author fallback costs a second request. */
+const MAX_REQUESTS_PER_RUN = 34;
+/** 34 requests at 1s each, with room to release claims and respond. */
 const BUDGET_MS = 45_000;
-/** Sized so 1440 runs a day stay under the 50,000/day policy. */
+/** Claim enough that a run of all-ISBN hits is never starved of work. */
 const BATCH_SIZE = 34;
 /** A run that dies mid-batch strands its claim until this reclaims it. */
 const STALE_CLAIM_MINUTES = 15;
@@ -31,6 +33,7 @@ type CronResult = {
     status: 'ok';
     claimed: number;
     processed: number;
+    requests: number;
     enriched: number;
     noMatch: number;
     failed: number;
@@ -62,7 +65,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<CronResult>> {
     if (books.length === 0) {
         return NextResponse.json({
             status: 'ok',
-            claimed: 0, processed: 0, enriched: 0, noMatch: 0, failed: 0,
+            claimed: 0, processed: 0, requests: 0, enriched: 0, noMatch: 0, failed: 0,
             released: 0, recovered, remaining: remainingUnclaimed,
             stoppedEarly: false, rateLimited: false,
         });
@@ -75,26 +78,48 @@ export async function GET(req: NextRequest): Promise<NextResponse<CronResult>> {
         editions: b.editions.map(e => ({ id: e.id, isbn13: e.isbn13 })),
     }));
 
+    const sleep = (ms: number): Promise<void> => new Promise(resolve => {
+        setTimeout(resolve, ms);
+    });
+
     const deps: WorkerDeps = {
+        // Paces itself, because only it knows how many requests it spends.
         lookup: async book => {
-            const { response } = await queryHardcover({
-                title: book.title,
-                name: book.authors[0]?.name ?? '',
-                isbn: book.editions[0]?.isbn13,
-            }, token);
-            return selectEdition(response);
+            let requests = 0;
+
+            const isbn = book.editions[0]?.isbn13;
+            if (isbn) {
+                await sleep(PER_REQUEST_MS);
+                requests++;
+                const { response } = await queryHardcoverByIsbn(isbn, token);
+                const edition = selectEdition(response);
+                if (edition) {
+                    return { edition, requests };
+                }
+            }
+
+            const name = book.authors[0]?.name;
+            if (!name) {
+                return { edition: null, requests };
+            }
+
+            await sleep(PER_REQUEST_MS);
+            requests++;
+            const { response } = await queryHardcoverByTitleAuthor(book.title, name, token);
+            return { edition: selectEdition(response), requests };
         },
         apply: applyEnrichment,
         dequeue: async bookId => {
             await removeBookFromQueue(bookId);
         },
         now: () => Date.now(),
-        sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
+        sleep,
     };
 
     const result = await runEnrichmentBatch(queueBooks, deps, {
         budgetMs: BUDGET_MS,
-        perItemMs: PER_ITEM_MS,
+        perRequestMs: PER_REQUEST_MS,
+        maxRequests: MAX_REQUESTS_PER_RUN,
     });
 
     // Whatever we did not finish goes back on the queue now, rather than
@@ -105,6 +130,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<CronResult>> {
         status: 'ok',
         claimed: books.length,
         processed: result.processed,
+        requests: result.requests,
         enriched: result.enriched,
         noMatch: result.noMatch,
         failed: result.failed,
