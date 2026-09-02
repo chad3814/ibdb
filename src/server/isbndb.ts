@@ -223,13 +223,17 @@ async function saveIsbndbBook(isbnBook: IsbnDbSearchBook): Promise<FullBook> {
                     throw new Error('failed to create book');
                 }
 
-                // Add new book to HardcoverQueue (since it won't have hardcoverId)
-                try {
-                    await addBookToQueue(newBook.id);
-                } catch (error) {
-                    console.warn('Failed to add book to HardcoverQueue:', error);
-                    // Don't fail the book creation if queue addition fails
-                }
+                // Add new book to HardcoverQueue (since it won't have hardcoverId).
+                // Must write through $tx: newBook is not committed yet, so a
+                // separate connection cannot see it and the foreign key check
+                // fails with P2003. This was silently swallowed for a year,
+                // which is why nothing has been enqueued since 2025-09-14.
+                //
+                // Deliberately not wrapped in try/catch. An error here aborts
+                // the Postgres transaction, so continuing would fail every
+                // later statement anyway; search() already tolerates a single
+                // book failing without discarding the rest of the results.
+                await addBookToQueue(newBook.id, $tx);
                 newEdition = newBook.editions[0];
                 if (!newEdition) {
                     throw new Error('failed to create edition');

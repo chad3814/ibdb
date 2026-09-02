@@ -172,13 +172,32 @@ export async function cleanupCompleted(): Promise<number> {
 }
 
 /**
+ * The slice of a Prisma client this module writes through. Declaring it
+ * narrowly lets callers pass an interactive transaction client.
+ */
+export interface QueueClient {
+  hardcoverQueue: {
+    create(args: {
+      data: { bookId: string; processingId: null; claimTime: null };
+    }): PromiseLike<{ id: string }>;
+  };
+}
+
+/**
  * Add a book to the queue
+ *
+ * Pass the caller's transaction client when the book was created in a
+ * transaction that has not committed. Writing through the module-level `db`
+ * instead puts the INSERT on a different connection, which cannot see the
+ * uncommitted Book row and fails the foreign key check with P2003.
+ *
  * @param bookId - Book ID to add
+ * @param client - Client to write through, defaults to the shared connection
  * @returns True if added, false if already exists
  */
-export async function addBookToQueue(bookId: string): Promise<boolean> {
+export async function addBookToQueue(bookId: string, client: QueueClient = db): Promise<boolean> {
   try {
-    await db.hardcoverQueue.create({
+    await client.hardcoverQueue.create({
       data: {
         bookId,
         processingId: null,
