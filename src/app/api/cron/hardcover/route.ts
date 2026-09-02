@@ -7,12 +7,21 @@ import { runEnrichmentBatch, type QueueBook, type WorkerDeps } from '@/server/ha
 
 export const maxDuration = 60;
 
-/** Hardcover's free tier allows 60 requests per minute. */
+// Hardcover's free tier enforces two policies at once:
+//   "Free";q=60;w=60;burst=10   -- 60 requests per minute
+//   "daily";q=5000;w=86400      -- 5000 requests per day
+//
+// The per-minute limit sets the pacing below. The daily limit is enforced by
+// the cron schedule itself rather than a counter, so it cannot drift:
+// every 10 minutes (144 runs/day) x 34 books = 4,896/day, just under the cap.
+// Raising the cap means raising BATCH_SIZE and BUDGET_MS together, and the
+// schedule in vercel.json.
+/** One request per second keeps us under the 60/minute policy. */
 const PER_ITEM_MS = 1_000;
-/** Under maxDuration, leaving room to release claims and respond. */
-const BUDGET_MS = 50_000;
-/** No point claiming more than the budget can process. */
-const BATCH_SIZE = 50;
+/** 34 books at 1s each, with room to release claims and respond. */
+const BUDGET_MS = 40_000;
+/** Sized so 144 runs a day stay under the 5000/day policy. */
+const BATCH_SIZE = 34;
 /** A run that dies mid-batch strands its claim until this reclaims it. */
 const STALE_CLAIM_MINUTES = 15;
 
