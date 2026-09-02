@@ -67,12 +67,12 @@ async function testQueueOperations() {
     // Find a book with hardcoverId if any exist
     const completedBook = await db.book.findFirst({
       where: { hardcoverId: { not: null } },
-      select: { id: true, title: true }
+      select: { id: true, title: true, createdAt: true }
     });
 
     if (completedBook) {
       // Try to add it to queue (should handle gracefully)
-      const added = await addBookToQueue(completedBook.id);
+      const added = await addBookToQueue(completedBook.id, completedBook.createdAt);
       console.log(`  Attempted to add completed book: ${added ? 'Added' : 'Already exists'}`);
 
       // Now cleanup

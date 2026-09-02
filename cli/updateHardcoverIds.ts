@@ -58,7 +58,7 @@ async function loop(processingId?: string) {
         }
         const {data} = response;
 
-        const editions = data.editions;
+        const editions = data.editions ?? [];
         if (editions.length === 0) {
             // console.log(`No hardcover ID found for ${title} by ${name}`);
             continue;

@@ -1,89 +1,32 @@
-// Types for Hardcover GraphQL API responses
+// Re-exported so the CLI and the cron worker share one Hardcover client.
+// The implementation lives in src/server/hardcover.ts.
+export type {
+    HardcoverAuthor,
+    HardcoverContribution,
+    HardcoverBook,
+    HardcoverEdition,
+    HardcoverQueryVariables,
+    HardcoverQueryResponse,
+    RateLimitState,
+} from '../../src/server/hardcover';
 
-export interface HardcoverAuthor {
-    id: number;
-    name: string;
-    slug: string;
-}
+export {
+    selectEdition,
+    parseRateLimit,
+    HardcoverRateLimitedError,
+} from '../../src/server/hardcover';
 
-export interface HardcoverContribution {
-    author: HardcoverAuthor;
-}
+import { queryHardcover as query } from '../../src/server/hardcover';
+import type { HardcoverQueryVariables, HardcoverQueryResponse } from '../../src/server/hardcover';
 
-export interface HardcoverBook {
-    id: number;
-    title: string;
-    slug: string;
-    contributions: HardcoverContribution[];
-}
-
-export interface HardcoverEdition {
-    id: number;
-    isbn_13: string;
-    book: HardcoverBook;
-}
-
-export interface HardcoverQueryVariables {
-    title?: string;
-    name?: string;
-    isbn?: string;
-}
-
-export interface HardcoverQueryResponse {
-    data: {
-        editions: HardcoverEdition[];
-    };
-    errors?: Array<{
-        message: string;
-        extensions?: Record<string, unknown>;
-    }>;
-}
-
-// Helper function to make the GraphQL query
+/**
+ * Kept returning the bare response body so cli/updateHardcoverIds.ts, which
+ * predates rate limit handling, works unchanged.
+ */
 export async function queryHardcover(
     variables: HardcoverQueryVariables,
     token: string
 ): Promise<HardcoverQueryResponse> {
-    const query = `
-        query MyQuery($title: String, $name: String, $isbn: String) {
-            editions(
-                where: {
-                    title: {_eq: $title},
-                    edition_format: {_is_null: false},
-                    contributions: {author: {name: {_eq: $name}}},
-                    isbn_13: {_eq: $isbn}
-                }
-            ) {
-                id
-                isbn_13
-                book {
-                    id
-                    title
-                    slug
-                    contributions {
-                        author {
-                            id
-                            name
-                            slug
-                        }
-                    }
-                }
-            }
-        }
-    `;
-
-    const response = await fetch('https://api.hardcover.app/v1/graphql', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ query, variables }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`Hardcover API request failed: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json() as Promise<HardcoverQueryResponse>;
+    const { response } = await query(variables, token);
+    return response;
 }

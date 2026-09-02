@@ -233,7 +233,7 @@ async function saveIsbndbBook(isbnBook: IsbnDbSearchBook): Promise<FullBook> {
                 // the Postgres transaction, so continuing would fail every
                 // later statement anyway; search() already tolerates a single
                 // book failing without discarding the rest of the results.
-                await addBookToQueue(newBook.id, $tx);
+                await addBookToQueue(newBook.id, newBook.createdAt, $tx);
                 newEdition = newBook.editions[0];
                 if (!newEdition) {
                     throw new Error('failed to create edition');

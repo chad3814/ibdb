@@ -25,9 +25,10 @@ async function example() {
         if (response1.errors) {
             console.error('GraphQL Errors:', response1.errors);
         } else {
-            console.log(`Found ${response1.data.editions.length} editions`);
+            const editions1 = response1.data.editions ?? [];
+            console.log(`Found ${editions1.length} editions`);
             
-            for (const edition of response1.data.editions) {
+            for (const edition of editions1) {
                 console.log('\nEdition:');
                 console.log(`  ID: ${edition.id}`);
                 console.log(`  ISBN-13: ${edition.isbn_13}`);
@@ -53,7 +54,7 @@ async function example() {
     try {
         console.log('\n---\nQuerying with ISBN only:', variables2);
         const response2 = await queryHardcover(variables2, HARDCOVER_TOKEN!);
-        console.log(`Found ${response2.data.editions.length} editions by ISBN`);
+        console.log(`Found ${(response2.data.editions ?? []).length} editions by ISBN`);
     } catch (error) {
         console.error('Error querying by ISBN:', error);
     }
@@ -67,7 +68,7 @@ async function example() {
     try {
         console.log('\n---\nQuerying with title and author:', variables3);
         const response3 = await queryHardcover(variables3, HARDCOVER_TOKEN!);
-        console.log(`Found ${response3.data.editions.length} editions by title and author`);
+        console.log(`Found ${(response3.data.editions ?? []).length} editions by title and author`);
     } catch (error) {
         console.error('Error querying by title and author:', error);
     }

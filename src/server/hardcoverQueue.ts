@@ -26,9 +26,14 @@ export async function claimBooks(previousProcessingId?: string, limit: number = 
     }
 
     // Step 2: Select unclaimed books (simplified query)
+    // Newest first: the homepage lists recent books, so enriching those
+    // first makes it useful within hours instead of at the end of the drain.
     const unclaimedBooks = await tx.hardcoverQueue.findMany({
       where: {
         processingId: null
+      },
+      orderBy: {
+        bookCreatedAt: 'desc'
       },
       take: limit,
       select: {
@@ -178,7 +183,7 @@ export async function cleanupCompleted(): Promise<number> {
 export interface QueueClient {
   hardcoverQueue: {
     create(args: {
-      data: { bookId: string; processingId: null; claimTime: null };
+      data: { bookId: string; processingId: null; claimTime: null; bookCreatedAt: Date };
     }): PromiseLike<{ id: string }>;
   };
 }
@@ -192,16 +197,22 @@ export interface QueueClient {
  * uncommitted Book row and fails the foreign key check with P2003.
  *
  * @param bookId - Book ID to add
+ * @param bookCreatedAt - Book.createdAt, denormalized as the claim sort key
  * @param client - Client to write through, defaults to the shared connection
  * @returns True if added, false if already exists
  */
-export async function addBookToQueue(bookId: string, client: QueueClient = db): Promise<boolean> {
+export async function addBookToQueue(
+  bookId: string,
+  bookCreatedAt: Date,
+  client: QueueClient = db
+): Promise<boolean> {
   try {
     await client.hardcoverQueue.create({
       data: {
         bookId,
         processingId: null,
-        claimTime: null
+        claimTime: null,
+        bookCreatedAt
       }
     });
     return true;

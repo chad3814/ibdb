@@ -252,9 +252,20 @@ model HardcoverQueue {
   bookId       String    @unique
   processingId String? // UUID assigned when claimed by a client
   claimTime    DateTime? // Timestamp when claimed
+  /// Copy of Book.createdAt, so claiming newest-first is a single index scan.
+  /// Joining back to Book instead costs seconds per claim, because the queue
+  /// has large gaps where books were never enqueued and the scan has to walk
+  /// past every one of them to find a queued row.
+  bookCreatedAt DateTime @default(now())
 
   book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
 
   @@index([processingId])
   @@index([claimTime])
+  // NOTE: a partial covering index, HardcoverQueue_claimable_idx, also exists
+  // on ("bookCreatedAt" DESC) INCLUDE ("bookId") WHERE "processingId" IS NULL.
+  // It is what makes the newest-first claim an index-only scan (0.5ms rather
+  // than a 179ms seq scan and sort). Prisma cannot express partial or covering
+  // indexes, so it lives in 20260902223753_backfill_hardcover_queue.
+  // `prisma migrate dev` will see it as drift and offer to drop it -- do not.
 }
