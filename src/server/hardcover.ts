@@ -113,17 +113,6 @@ const ISBN_QUERY = `
     }
 `;
 
-/** Fallback for books whose ISBN Hardcover does not know. */
-const TITLE_AUTHOR_QUERY = `
-    query ByTitleAuthor($title: String, $name: String) {
-        editions(where: {
-            title: {_eq: $title},
-            contributions: {author: {name: {_eq: $name}}},
-            edition_format: {_is_null: false}
-        }) {${EDITION_FIELDS}}
-    }
-`;
-
 /** The original conjunction, kept so cli/updateHardcoverIds.ts is unchanged. */
 const COMBINED_QUERY = `
     query MyQuery($title: String, $name: String, $isbn: String) {
@@ -186,15 +175,6 @@ export function queryHardcoverByIsbn(
     signal?: AbortSignal
 ): Promise<HardcoverResult> {
     return execute(ISBN_QUERY, { isbn }, token, signal);
-}
-
-export function queryHardcoverByTitleAuthor(
-    title: string,
-    name: string,
-    token: string,
-    signal?: AbortSignal
-): Promise<HardcoverResult> {
-    return execute(TITLE_AUTHOR_QUERY, { title, name }, token, signal);
 }
 
 export function queryHardcover(

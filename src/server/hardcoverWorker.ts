@@ -35,6 +35,12 @@ export type BatchOptions = {
     perRequestMs: number;
     /** Hard ceiling on Hardcover requests, which is what the daily quota counts. */
     maxRequests: number;
+    /**
+     * Worst case requests a single lookup can spend. The loop reserves this
+     * much headroom before starting a book, so the cap is never overshot.
+     * Reserving more than a lookup actually costs wastes quota.
+     */
+    maxRequestsPerBook: number;
 };
 
 export type BatchResult = {
@@ -55,13 +61,10 @@ export type BatchResult = {
  * Books it finishes with are dequeued; whatever it does not reach stays claimed
  * for the caller to release.
  */
-/** An ISBN query, plus at most one title+author fallback. */
-const MAX_REQUESTS_PER_BOOK = 2;
-
 export async function runEnrichmentBatch(
     books: QueueBook[],
     deps: WorkerDeps,
-    { budgetMs, perRequestMs, maxRequests }: BatchOptions
+    { budgetMs, perRequestMs, maxRequests, maxRequestsPerBook }: BatchOptions
 ): Promise<BatchResult> {
     const startedAt = deps.now();
     const result: BatchResult = {
@@ -75,9 +78,9 @@ export async function runEnrichmentBatch(
     };
 
     for (const book of books) {
-        // A book costs at most two requests, so never start one with less than
-        // two of headroom -- otherwise a fallback would overshoot the quota.
-        if (result.requests + MAX_REQUESTS_PER_BOOK > maxRequests) {
+        // Never start a book without room for its worst case, or the cap
+        // would be overshot mid-book.
+        if (result.requests + maxRequestsPerBook > maxRequests) {
             result.stoppedEarly = true;
             break;
         }
@@ -86,7 +89,7 @@ export async function runEnrichmentBatch(
         if (!hasTimeRemaining({
             elapsedMs,
             budgetMs,
-            nextItemMs: perRequestMs * MAX_REQUESTS_PER_BOOK,
+            nextItemMs: perRequestMs * maxRequestsPerBook,
         })) {
             result.stoppedEarly = true;
             break;

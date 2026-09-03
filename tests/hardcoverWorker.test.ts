@@ -42,7 +42,7 @@ function deps(overrides: Partial<WorkerDeps> = {}) {
     return { applied, dequeued, deps: { ...base, ...overrides }, state };
 }
 
-const opts = { budgetMs: 45_000, perRequestMs: 1_000, maxRequests: 34 };
+const opts = { budgetMs: 45_000, perRequestMs: 1_000, maxRequests: 34, maxRequestsPerBook: 1 };
 
 describe('runEnrichmentBatch', () => {
     it('writes ids for a book Hardcover matches', async () => {
@@ -71,7 +71,7 @@ describe('runEnrichmentBatch', () => {
         const result = await runEnrichmentBatch(
             Array.from({ length: 50 }, (_, i) => book(`bk-${i}`)),
             d.deps,
-            { budgetMs: 10_000_000, perRequestMs: 1_000, maxRequests: 10 }
+            { budgetMs: 10_000_000, perRequestMs: 1_000, maxRequests: 10, maxRequestsPerBook: 2 }
         );
 
         assert.equal(result.requests, 10, 'must stop at the request cap');
@@ -85,10 +85,25 @@ describe('runEnrichmentBatch', () => {
         const result = await runEnrichmentBatch(
             Array.from({ length: 50 }, (_, i) => book(`bk-${i}`)),
             d.deps,
-            { budgetMs: 10_000_000, perRequestMs: 1_000, maxRequests: 5 }
+            { budgetMs: 10_000_000, perRequestMs: 1_000, maxRequests: 5, maxRequestsPerBook: 2 }
         );
 
         assert.ok(result.requests <= 5, `never exceed the cap, got ${result.requests}`);
+    });
+
+    it('spends the cap exactly when a book costs a single request', async () => {
+        // With no fallback a book is worth exactly one request, so reserving
+        // two per book would waste half the daily quota.
+        const d = deps({ lookup: async () => ({ edition: match(), requests: 1 }) });
+
+        const result = await runEnrichmentBatch(
+            Array.from({ length: 50 }, (_, i) => book(`bk-${i}`)),
+            d.deps,
+            { budgetMs: 10_000_000, perRequestMs: 1_000, maxRequests: 5, maxRequestsPerBook: 1 }
+        );
+
+        assert.equal(result.requests, 5);
+        assert.equal(result.processed, 5);
     });
 
     it('stops before the time budget runs out and leaves the rest claimed', async () => {
@@ -100,7 +115,7 @@ describe('runEnrichmentBatch', () => {
         const books = Array.from({ length: 100 }, (_, i) => book(`bk-${i}`));
 
         const result = await runEnrichmentBatch(books, d.deps, {
-            budgetMs: 5_000, perRequestMs: 1_000, maxRequests: 1_000,
+            budgetMs: 5_000, perRequestMs: 1_000, maxRequests: 1_000, maxRequestsPerBook: 1,
         });
 
         assert.ok(result.processed < 100, 'must not process the whole batch');
