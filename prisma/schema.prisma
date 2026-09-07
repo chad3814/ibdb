@@ -12,6 +12,13 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Migrations only, and it must not be the pooled endpoint. `prisma migrate
+  // deploy` takes a session-scoped advisory lock, which PgBouncer's
+  // transaction pooling cannot hold reliably: a production deploy failed with
+  // P1002 after timing out on pg_advisory_lock, on a commit that changed no
+  // migrations at all. Neon's Vercel integration provisions this variable.
+  // Runtime queries still use the pooled url above.
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 enum Binding {
