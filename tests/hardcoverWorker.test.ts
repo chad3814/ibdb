@@ -157,6 +157,35 @@ describe('runEnrichmentBatch', () => {
         assert.equal(result.enriched, 1);
     });
 
+    it('reports which books it enriched, so their pages can be invalidated', async () => {
+        // Book pages are cached for 30 days, so an enriched book only shows its
+        // hardcover.app link once the cached page is purged.
+        let call = 0;
+        const d = deps({
+            lookup: async () => {
+                call++;
+                return call === 2
+                    ? { edition: null, requests: 1 }
+                    : { edition: match(), requests: 1 };
+            },
+        });
+
+        const result = await runEnrichmentBatch(
+            [book('bk-1'), book('bk-2'), book('bk-3')],
+            d.deps,
+            opts
+        );
+
+        assert.deepEqual(result.enrichedBookIds, ['bk-1', 'bk-3']);
+        assert.equal(result.noMatch, 1, 'bk-2 matched nothing and needs no purge');
+    });
+
+    it('reports no ids when nothing was enriched', async () => {
+        const d = deps({ lookup: async () => ({ edition: null, requests: 1 }) });
+        const result = await runEnrichmentBatch([book('bk-1')], d.deps, opts);
+        assert.deepEqual(result.enrichedBookIds, []);
+    });
+
     it('dequeues a book with no edition rather than retrying it forever', async () => {
         const d = deps();
         const noEdition = { ...book('bk-1'), editions: [] };

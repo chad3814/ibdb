@@ -14,11 +14,12 @@ import { notFound } from 'next/navigation';
  * times in a day. Book and author records change rarely enough that serving a
  * cached copy is the right default.
  *
- * A week rather than forever because the pages are not actually immutable: the
- * Hardcover enrichment worker adds the hardcover.app link, and new editions of
- * an existing book appear in the editions list.
+ * Thirty days is a backstop, not the primary mechanism. The cron worker purges
+ * a book's page as soon as it writes a hardcoverId, so the link appears within
+ * a minute rather than a month; the TTL only covers changes nothing thinks to
+ * purge, such as a new edition of an existing book.
  */
-export const revalidate = 604800;
+export const revalidate = 2592000;
 
 /**
  * No paths are prerendered at build time. Returning an empty list is what

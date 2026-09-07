@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { isCronAuthorized } from '@/lib/cronAuth';
 import { claimBooks, releaseClaim, releaseOldClaims, removeBookFromQueue } from '@/server/hardcoverQueue';
 import { queryHardcoverByIsbn, selectEdition } from '@/server/hardcover';
@@ -36,6 +37,7 @@ type CronResult = {
     claimed: number;
     processed: number;
     requests: number;
+    purged: number;
     enriched: number;
     noMatch: number;
     failed: number;
@@ -67,7 +69,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<CronResult>> {
     if (books.length === 0) {
         return NextResponse.json({
             status: 'ok',
-            claimed: 0, processed: 0, requests: 0, enriched: 0, noMatch: 0, failed: 0,
+            claimed: 0, processed: 0, requests: 0, purged: 0, enriched: 0, noMatch: 0, failed: 0,
             released: 0, recovered, remaining: remainingUnclaimed,
             stoppedEarly: false, rateLimited: false,
         });
@@ -117,6 +119,14 @@ export async function GET(req: NextRequest): Promise<NextResponse<CronResult>> {
         maxRequestsPerBook: MAX_REQUESTS_PER_BOOK,
     });
 
+    // Book pages are cached for 30 days, so an enriched book would keep serving
+    // a copy without its hardcover.app link. Purge the ones we just wrote.
+    // Author pages are untouched: AuthorDetail renders nothing that enrichment
+    // changes.
+    for (const bookId of result.enrichedBookIds) {
+        revalidatePath(`/book/${bookId}`);
+    }
+
     // Whatever we did not finish goes back on the queue now, rather than
     // waiting out STALE_CLAIM_MINUTES.
     const released = await releaseClaim(processingId);
@@ -126,6 +136,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<CronResult>> {
         claimed: books.length,
         processed: result.processed,
         requests: result.requests,
+        purged: result.enrichedBookIds.length,
         enriched: result.enriched,
         noMatch: result.noMatch,
         failed: result.failed,

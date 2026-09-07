@@ -52,6 +52,11 @@ export type BatchResult = {
     failed: number;
     stoppedEarly: boolean;
     rateLimited: boolean;
+    /**
+     * Books whose ids were written. Their cached pages hold a stale copy
+     * without the hardcover.app link until they are purged.
+     */
+    enrichedBookIds: string[];
 };
 
 /**
@@ -75,6 +80,7 @@ export async function runEnrichmentBatch(
         failed: 0,
         stoppedEarly: false,
         rateLimited: false,
+        enrichedBookIds: [],
     };
 
     for (const book of books) {
@@ -117,6 +123,7 @@ export async function runEnrichmentBatch(
                     found
                 ));
                 result.enriched++;
+                result.enrichedBookIds.push(book.id);
             }
             result.processed++;
         } catch (err) {
