@@ -5,6 +5,33 @@ import { db } from "@/server/db";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+/**
+ * Cache this page at the edge for a week.
+ *
+ * These pages were fully dynamic, so every request -- including every crawler
+ * hit -- invoked a function and queried Postgres twice, once in
+ * generateMetadata and once in the page itself. Anthologies make that
+ * expensive: one book with 182 authors links to 182 author pages that each
+ * link back, and a crawler walking that graph fetched the same book page 90
+ * times in a day. Book and author records change rarely enough that serving a
+ * cached copy is the right default.
+ *
+ * A week rather than forever because the pages are not actually immutable: the
+ * Hardcover enrichment worker adds the hardcover.app link, and new editions of
+ * an existing book appear in the editions list.
+ */
+export const revalidate = 604800;
+
+/**
+ * No paths are prerendered at build time -- there are 2.5M books. Returning an
+ * empty list is what registers the route as cacheable: without this the route
+ * stays fully dynamic and `revalidate` above is silently ignored, which the
+ * build's prerender manifest confirms (dynamicRoutes was empty).
+ */
+export async function generateStaticParams() {
+    return [];
+}
+
 type Props = {
     params: Promise<{
         id: string;
