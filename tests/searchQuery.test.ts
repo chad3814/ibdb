@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanQuery } from '../src/lib/searchQuery';
+import { cleanQuery, MAX_QUERY_LENGTH } from '../src/lib/searchQuery';
 
 describe('cleanQuery', () => {
     it('lowercases and keeps alphanumerics', () => {
@@ -56,6 +56,44 @@ describe('cleanQuery', () => {
         const composed = input.normalize('NFC');
         assert.ok(composed.includes('\u0307'), 'fixture must leave a mark after NFC');
         assert.equal(cleanQuery(input), composed.toLowerCase());
+    });
+
+    it('caps the query at ISBNdb\'s documented 150 character maximum', () => {
+        // Longer queries come back 400 Bad Request, and a throw is never
+        // cached, so each one used to be re-sent on every repeat.
+        const long = 'a'.repeat(80) + ' ' + 'b'.repeat(80);
+        assert.ok(long.length > MAX_QUERY_LENGTH);
+        assert.ok(cleanQuery(long).length <= MAX_QUERY_LENGTH);
+    });
+
+    it('caps on a word boundary rather than mid-word', () => {
+        // shouldMatchAll=1 requires every word to be present, so a truncated
+        // fragment would match nothing at all.
+        const long = ('alpha bravo charlie delta echo foxtrot golf hotel '.repeat(5)).trim();
+        const capped = cleanQuery(long);
+        assert.ok(capped.length <= MAX_QUERY_LENGTH);
+        assert.ok(!capped.endsWith(' '));
+        for (const word of capped.split(' ')) {
+            assert.ok(
+                ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel'].includes(word),
+                `"${word}" is a partial word`
+            );
+        }
+    });
+
+    it('leaves a query at exactly the maximum untouched', () => {
+        const exact = 'x'.repeat(MAX_QUERY_LENGTH);
+        assert.equal(cleanQuery(exact), exact);
+        assert.equal(cleanQuery(exact).length, MAX_QUERY_LENGTH);
+    });
+
+    it('caps deterministically so repeats share one cache key', () => {
+        const long = ('war and peace leo tolstoy '.repeat(10)).trim();
+        assert.equal(cleanQuery(long), cleanQuery(long));
+    });
+
+    it('uses 150 as the maximum', () => {
+        assert.equal(MAX_QUERY_LENGTH, 150);
     });
 
     it('is idempotent', () => {

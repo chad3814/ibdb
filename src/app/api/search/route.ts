@@ -3,6 +3,7 @@ import { getApiBook } from "@/apiConvert";
 import { db } from "@/server/db";
 import { search } from "@/server/isbndb";
 import { cleanQuery } from "@/lib/searchQuery";
+import { hashClientIp } from "@/lib/clientHash";
 import { NEGATIVE_CACHE_TTL_MS, isFresh } from "@/lib/cacheTtl";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -68,6 +69,16 @@ export async function GET(req: NextRequest): Promise<NextResponse<SearchResult>>
             books: cached.books.map(b => getApiBook(b))
         });
     }
+
+    // Only misses reach ISBNdb, so only misses cost quota. Logging the client
+    // here measures how concentrated that spend is; the Firewall tab shows raw
+    // IPs but not per-path counts without Observability Plus. Hash a raw IP the
+    // same way to match it against these lines:
+    //   printf '<ip>' | shasum -a 256 | cut -c1-12
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        ?? req.headers.get('x-real-ip')
+        ?? 'unknown';
+    console.log(`isbndb miss client=${await hashClientIp(clientIp)} qlen=${query.length} rawlen=${q.length}`);
 
     try {
         const books = await search(query);

@@ -11,6 +11,24 @@ const UNCLEAN = /[^\p{L}\p{N}\p{M} ]/gu;
 const RUNS_OF_SPACE = /\s+/gu;
 
 /**
+ * ISBNdb's documented maximum for the /books/{query} path parameter. Anything
+ * longer comes back 400 Bad Request, and because that throws rather than
+ * returning an empty result it never reaches the cache, so the same rejected
+ * query is re-sent on every repeat.
+ */
+export const MAX_QUERY_LENGTH = 150;
+
+/** Trims to at most `max` characters without splitting a word. */
+function capAtWordBoundary(text: string, max: number): string {
+    if (text.length <= max) {
+        return text;
+    }
+    const clipped = text.slice(0, max);
+    const lastSpace = clipped.lastIndexOf(' ');
+    return (lastSpace > 0 ? clipped.slice(0, lastSpace) : clipped).trimEnd();
+}
+
+/**
  * Normalizes a raw user query into the canonical key used for the BookQuery
  * cache. Text is composed to NFC, punctuation becomes whitespace, runs of
  * whitespace collapse to a single space, and the result is trimmed and
@@ -23,10 +41,12 @@ const RUNS_OF_SPACE = /\s+/gu;
  * but punctuation, which callers must treat as "no query" rather than search.
  */
 export function cleanQuery(query: string): string {
-    return query
+    const normalized = query
         .normalize('NFC')
         .replaceAll(UNCLEAN, ' ')
         .replaceAll(RUNS_OF_SPACE, ' ')
         .trim()
         .toLowerCase();
+
+    return capAtWordBoundary(normalized, MAX_QUERY_LENGTH);
 }
