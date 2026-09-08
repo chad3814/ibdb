@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEARCH_BUCKET, consumeToken, nextTokenAt } from '../src/lib/tokenBucket';
+import { SEARCH_BUCKET, consumeToken, nextTokenAt, refillTokens } from '../src/lib/tokenBucket';
 
 const cfg = { capacity: 10, refillPerDay: 86_400 }; // 1 token/second, easy arithmetic
 const t0 = new Date('2026-09-08T12:00:00Z');
@@ -101,5 +101,30 @@ describe('nextTokenAt', () => {
     it('measures from now, not from when the row was written', () => {
         const half = { capacity: 10, refillPerDay: 43_200 }; // 0.5 tokens/sec
         assert.deepEqual(nextTokenAt({ tokens: 0, updatedAt: t0 }, half, t0), at(2));
+    });
+});
+
+describe('refillTokens', () => {
+    it('accrues tokens for time elapsed since the row was written', () => {
+        // The stored value is only correct as of updatedAt. Showing it raw made
+        // the admin page display "0.4 tokens" beside "available now".
+        assert.equal(refillTokens({ tokens: 0, updatedAt: t0 }, cfg, at(4)), 4);
+    });
+
+    it('returns the stored value when no time has passed', () => {
+        assert.equal(refillTokens({ tokens: 2.5, updatedAt: t0 }, cfg, t0), 2.5);
+    });
+
+    it('never exceeds capacity', () => {
+        assert.equal(refillTokens({ tokens: 0, updatedAt: t0 }, cfg, at(99_999)), cfg.capacity);
+    });
+
+    it('agrees with nextTokenAt about whether a token is available', () => {
+        const state = { tokens: 0, updatedAt: t0 };
+        assert.ok(refillTokens(state, cfg, at(4)) >= 1);
+        assert.equal(nextTokenAt(state, cfg, at(4)), null);
+
+        assert.ok(refillTokens(state, cfg, t0) < 1);
+        assert.notEqual(nextTokenAt(state, cfg, t0), null);
     });
 });

@@ -70,18 +70,29 @@ export function consumeToken(
 }
 
 /**
+ * A bucket's token count brought forward to `now`.
+ *
+ * The value stored on a row is only accurate as of its updatedAt, so anything
+ * displaying it has to refill first -- otherwise the admin page shows a stale
+ * count beside a correctly-computed "available now".
+ */
+export function refillTokens(state: BucketState, config: BucketConfig, now: Date): number {
+    const tokensPerMs = config.refillPerDay / MS_PER_DAY;
+    // Clamp elapsed at zero so clock skew cannot run the refill backwards.
+    const elapsedMs = Math.max(0, now.getTime() - state.updatedAt.getTime());
+    return Math.min(config.capacity, state.tokens + elapsedMs * tokensPerMs);
+}
+
+/**
  * When this client's next token becomes available, or null if one is available
- * already. Shares the refill maths with consumeToken so the admin view and the
+ * already. Shares refillTokens with consumeToken so the admin view and the
  * limiter cannot disagree about when a throttled client may retry.
  */
 export function nextTokenAt(state: BucketState, config: BucketConfig, now: Date): Date|null {
-    const tokensPerMs = config.refillPerDay / MS_PER_DAY;
-    const elapsedMs = Math.max(0, now.getTime() - state.updatedAt.getTime());
-    const tokens = Math.min(config.capacity, state.tokens + elapsedMs * tokensPerMs);
-
+    const tokens = refillTokens(state, config, now);
     if (tokens >= 1) {
         return null;
     }
-
+    const tokensPerMs = config.refillPerDay / MS_PER_DAY;
     return new Date(now.getTime() + (1 - tokens) / tokensPerMs);
 }

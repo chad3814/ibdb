@@ -82,7 +82,7 @@ export default function ThrottledPage() {
 
     if (!entered) {
         return (
-            <div className="min-h-screen bg-gray-50">
+            <div className="min-h-screen bg-gray-50 text-gray-900 [color-scheme:light]">
                 <div className="container mx-auto max-w-md px-4 py-16">
                     <h1 className="text-2xl font-bold text-gray-900 mb-4">Admin secret</h1>
                     <form
@@ -94,7 +94,7 @@ export default function ThrottledPage() {
                             value={secret}
                             onChange={e => setSecret(e.target.value)}
                             placeholder="ADMIN_SECRET"
-                            className="flex-1 rounded border border-gray-300 px-3 py-2"
+                            className="flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-gray-900"
                         />
                         <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">
                             Continue
@@ -109,12 +109,12 @@ export default function ThrottledPage() {
     const throttled = clients.filter(c => c.throttled).length;
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 text-gray-900 [color-scheme:light]">
             <div className="container mx-auto px-4 py-8">
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">Search Rate Limits</h1>
                     <p className="text-gray-600">
-                        Clients that have reached ISBNdb, lowest bucket first.
+                        Clients that have reached ISBNdb, most recently active first.
                         {limits && ` Burst ${limits.capacity}, ${limits.refillPerDay}/day sustained.`}
                         {' '}Only cache misses spend a token.
                     </p>
@@ -142,7 +142,7 @@ export default function ThrottledPage() {
                         <thead className="bg-gray-50">
                             <tr>
                                 {['Client', 'Tokens', 'Next token', 'Last seen', ''].map(h => (
-                                    <th key={h} className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500">
+                                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
                                         {h}
                                     </th>
                                 ))}
@@ -151,8 +151,11 @@ export default function ThrottledPage() {
                         <tbody className="divide-y divide-gray-200">
                             {clients.map(c => (
                                 <tr key={c.clientHash} className={c.throttled ? 'bg-red-50' : ''}>
-                                    <td className="px-4 py-3 font-mono text-sm">{c.clientHash}</td>
-                                    <td className="px-4 py-3 text-sm">{c.tokens.toFixed(1)}</td>
+                                    <td className="px-4 py-3 font-mono text-sm text-gray-900">{c.clientHash}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">
+                                        {c.tokens.toFixed(1)}
+                                        <span className="text-gray-400"> / {limits?.capacity ?? ''}</span>
+                                    </td>
                                     <td className="px-4 py-3 text-sm">
                                         {c.throttled
                                             ? <span className="font-medium text-red-700">{relative(c.nextTokenAt)}</span>
@@ -164,7 +167,7 @@ export default function ThrottledPage() {
                                     <td className="px-4 py-3 text-right">
                                         <button
                                             onClick={() => reset(c.clientHash)}
-                                            className="rounded bg-gray-100 px-3 py-1 text-sm hover:bg-gray-200"
+                                            className="rounded bg-gray-100 px-3 py-1 text-sm font-medium text-gray-900 hover:bg-gray-200"
                                         >
                                             Reset
                                         </button>
