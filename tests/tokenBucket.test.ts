@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEARCH_BUCKET, consumeToken } from '../src/lib/tokenBucket';
+import { SEARCH_BUCKET, consumeToken, nextTokenAt } from '../src/lib/tokenBucket';
 
 const cfg = { capacity: 10, refillPerDay: 86_400 }; // 1 token/second, easy arithmetic
 const t0 = new Date('2026-09-08T12:00:00Z');
@@ -76,5 +76,30 @@ describe('consumeToken', () => {
         // Measured against real traffic: holds ~14,278/day against a 15,000 cap.
         assert.equal(SEARCH_BUCKET.capacity, 400);
         assert.equal(SEARCH_BUCKET.refillPerDay, 700);
+    });
+});
+
+describe('nextTokenAt', () => {
+    it('returns null when a token is available right now', () => {
+        assert.equal(nextTokenAt({ tokens: 3, updatedAt: t0 }, cfg, t0), null);
+    });
+
+    it('returns null at exactly one token', () => {
+        assert.equal(nextTokenAt({ tokens: 1, updatedAt: t0 }, cfg, t0), null);
+    });
+
+    it('reports when the next token arrives for an empty bucket', () => {
+        // 1 token/sec, so one second away.
+        assert.deepEqual(nextTokenAt({ tokens: 0, updatedAt: t0 }, cfg, t0), at(1));
+    });
+
+    it('accounts for refill already accrued since the row was written', () => {
+        // Written empty 4s ago at 1/sec: 4 tokens have accrued, so one is ready.
+        assert.equal(nextTokenAt({ tokens: 0, updatedAt: t0 }, cfg, at(4)), null);
+    });
+
+    it('measures from now, not from when the row was written', () => {
+        const half = { capacity: 10, refillPerDay: 43_200 }; // 0.5 tokens/sec
+        assert.deepEqual(nextTokenAt({ tokens: 0, updatedAt: t0 }, half, t0), at(2));
     });
 });

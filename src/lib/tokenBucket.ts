@@ -68,3 +68,20 @@ export function consumeToken(
     const retryAfterSeconds = Math.max(1, Math.ceil((1 - tokens) * secondsPerToken));
     return { allowed: false, tokens, retryAfterSeconds };
 }
+
+/**
+ * When this client's next token becomes available, or null if one is available
+ * already. Shares the refill maths with consumeToken so the admin view and the
+ * limiter cannot disagree about when a throttled client may retry.
+ */
+export function nextTokenAt(state: BucketState, config: BucketConfig, now: Date): Date|null {
+    const tokensPerMs = config.refillPerDay / MS_PER_DAY;
+    const elapsedMs = Math.max(0, now.getTime() - state.updatedAt.getTime());
+    const tokens = Math.min(config.capacity, state.tokens + elapsedMs * tokensPerMs);
+
+    if (tokens >= 1) {
+        return null;
+    }
+
+    return new Date(now.getTime() + (1 - tokens) / tokensPerMs);
+}
