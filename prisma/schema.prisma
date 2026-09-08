@@ -113,6 +113,18 @@ model IsbnMiss {
   @@index([updatedAt])
 }
 
+/// Token bucket per search client, keyed by the hashed IP that /api/search
+/// logs. Only requests that miss the cache and therefore reach ISBNdb consume
+/// a token. Refill is computed from updatedAt on read, so there is no
+/// background job and nothing resets at midnight.
+model SearchRateLimit {
+  clientHash String   @id
+  tokens     Float
+  updatedAt  DateTime
+
+  @@index([updatedAt])
+}
+
 model BookQuery {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())

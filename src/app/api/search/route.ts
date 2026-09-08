@@ -4,6 +4,8 @@ import { db } from "@/server/db";
 import { search } from "@/server/isbndb";
 import { cleanQuery } from "@/lib/searchQuery";
 import { hashClientIp } from "@/lib/clientHash";
+import { SEARCH_BUCKET } from "@/lib/tokenBucket";
+import { takeSearchToken } from "@/server/searchRateLimit";
 import { NEGATIVE_CACHE_TTL_MS, isFresh } from "@/lib/cacheTtl";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -78,7 +80,27 @@ export async function GET(req: NextRequest): Promise<NextResponse<SearchResult>>
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
         ?? req.headers.get('x-real-ip')
         ?? 'unknown';
-    console.log(`isbndb miss client=${await hashClientIp(clientIp)} qlen=${query.length} rawlen=${q.length}`);
+    const client = await hashClientIp(clientIp);
+    console.log(`isbndb miss client=${client} qlen=${query.length} rawlen=${q.length}`);
+
+    // Only misses are limited: a cache hit costs no ISBNdb quota, so browsing
+    // and repeat lookups are never throttled.
+    const limit = await takeSearchToken(client);
+    if (!limit.allowed) {
+        console.log(`rate limited client=${client} retryAfter=${limit.retryAfterSeconds}`);
+        return NextResponse.json({
+            status: 'error',
+            message: `Rate limit exceeded, retry after ${limit.retryAfterSeconds}s`,
+        }, {
+            status: 429,
+            headers: {
+                'Retry-After': String(limit.retryAfterSeconds),
+                'RateLimit-Limit': String(SEARCH_BUCKET.refillPerDay),
+                'RateLimit-Remaining': '0',
+                'RateLimit-Reset': String(limit.retryAfterSeconds),
+            },
+        });
+    }
 
     try {
         const books = await search(query);
