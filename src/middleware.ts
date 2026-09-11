@@ -1,9 +1,34 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { ADMIN_COOKIE, isAdminRequestAuthorized, requiresAdminAuth } from '@/lib/adminAuth';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
     const searchParams = request.nextUrl.searchParams;
+
+    // One gate for every admin page and API route. Checking here rather than in
+    // each handler means a route added later is covered by default -- four of
+    // the nine /api/admin routes had drifted open under the per-handler
+    // approach, including two that mutate data.
+    if (requiresAdminAuth(pathname)) {
+        const authorized = await isAdminRequestAuthorized({
+            headerSecret: request.headers.get('x-secret'),
+            cookieValue: request.cookies.get(ADMIN_COOKIE)?.value ?? null,
+            adminSecret: process.env.ADMIN_SECRET,
+        });
+
+        if (!authorized) {
+            if (pathname.startsWith('/api/')) {
+                return NextResponse.json({
+                    status: 'error',
+                    message: 'Unauthorized',
+                }, { status: 401 });
+            }
+            const login = new URL('/admin/login', request.url);
+            login.searchParams.set('next', pathname);
+            return NextResponse.redirect(login);
+        }
+    }
     
     // Handle /search?q= - always serve JSON for backward compatibility
     // This endpoint is now API-only, web users should use /books
@@ -51,5 +76,8 @@ export const config = {
         '/isbn/:path*.json',
         '/book-json/:path*',
         '/isbn-json/:path*',
+        '/admin',
+        '/admin/:path*',
+        '/api/admin/:path*',
     ],
 };

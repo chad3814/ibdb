@@ -1,9 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import type { ThrottledClient } from '@/app/api/admin/throttled/route';
 
-const SECRET_KEY = 'ibdb-admin-secret';
 const REFRESH_MS = 30_000;
 
 function relative(iso: string|null): string {
@@ -21,33 +21,27 @@ function relative(iso: string|null): string {
 }
 
 export default function ThrottledPage() {
-    const [secret, setSecret] = useState('');
-    const [entered, setEntered] = useState(false);
     const [clients, setClients] = useState<ThrottledClient[]>([]);
     const [limits, setLimits] = useState<{ capacity: number; refillPerDay: number }|null>(null);
     const [error, setError] = useState<string|null>(null);
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        const saved = sessionStorage.getItem(SECRET_KEY);
-        if (saved) {
-            setSecret(saved);
-            setEntered(true);
-        }
-    }, []);
-
-    const load = useCallback(async (withSecret: string) => {
+    const load = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch('/api/admin/throttled', { headers: { 'x-secret': withSecret } });
+            const res = await fetch('/api/admin/throttled');
+            if (res.status === 401) {
+                // The session expired mid-view; the gate will take it from here.
+                window.location.href = '/admin/login?next=/admin/throttled';
+                return;
+            }
             const data = await res.json();
             if (data.status !== 'ok') {
-                throw new Error(res.status === 401 ? 'Wrong admin secret' : data.message);
+                throw new Error(data.message);
             }
             setClients(data.clients);
             setLimits({ capacity: data.capacity, refillPerDay: data.refillPerDay });
-            sessionStorage.setItem(SECRET_KEY, withSecret);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load');
             setClients([]);
@@ -57,54 +51,22 @@ export default function ThrottledPage() {
     }, []);
 
     useEffect(() => {
-        if (!entered) {
-            return;
-        }
-        load(secret);
-        const timer = setInterval(() => load(secret), REFRESH_MS);
+        load();
+        const timer = setInterval(load, REFRESH_MS);
         return () => clearInterval(timer);
-    }, [entered, secret, load]);
+    }, [load]);
 
     const reset = async (clientHash: string) => {
         if (!confirm(`Reset the rate limit for ${clientHash}? They will start from a full bucket.`)) {
             return;
         }
-        const res = await fetch(`/api/admin/throttled/${clientHash}`, {
-            method: 'DELETE',
-            headers: { 'x-secret': secret },
-        });
+        const res = await fetch(`/api/admin/throttled/${clientHash}`, { method: 'DELETE' });
         if (!res.ok) {
             setError('Reset failed');
             return;
         }
-        await load(secret);
+        await load();
     };
-
-    if (!entered) {
-        return (
-            <div className="min-h-screen bg-gray-50 text-gray-900 [color-scheme:light]">
-                <div className="container mx-auto max-w-md px-4 py-16">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-4">Admin secret</h1>
-                    <form
-                        onSubmit={e => { e.preventDefault(); setEntered(true); }}
-                        className="flex gap-2"
-                    >
-                        <input
-                            type="password"
-                            value={secret}
-                            onChange={e => setSecret(e.target.value)}
-                            placeholder="ADMIN_SECRET"
-                            className="flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-gray-900"
-                        />
-                        <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">
-                            Continue
-                        </button>
-                    </form>
-                    <p className="mt-3 text-sm text-gray-500">Kept in sessionStorage for this tab only.</p>
-                </div>
-            </div>
-        );
-    }
 
     const throttled = clients.filter(c => c.throttled).length;
 
@@ -112,6 +74,9 @@ export default function ThrottledPage() {
         <div className="min-h-screen bg-gray-50 text-gray-900 [color-scheme:light]">
             <div className="container mx-auto px-4 py-8">
                 <div className="mb-8">
+                    <Link href="/admin" className="mb-2 inline-block text-sm text-blue-600 hover:underline">
+                        &larr; Admin
+                    </Link>
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">Search Rate Limits</h1>
                     <p className="text-gray-600">
                         Clients that have reached ISBNdb, most recently active first.
@@ -123,12 +88,6 @@ export default function ThrottledPage() {
                 {error && (
                     <div className="mb-4 rounded border border-red-300 bg-red-50 px-4 py-3 text-red-800">
                         {error}
-                        <button
-                            onClick={() => { sessionStorage.removeItem(SECRET_KEY); setEntered(false); }}
-                            className="ml-3 underline"
-                        >
-                            change secret
-                        </button>
                     </div>
                 )}
 

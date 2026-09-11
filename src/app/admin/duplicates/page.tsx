@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { DuplicateReviewModal } from '@/components/DuplicateReviewModal';
 
 interface AuthorDuplicate {
@@ -247,6 +248,9 @@ export default function AdminDuplicatesPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
+          <Link href="/admin" className="mb-2 inline-block text-sm text-blue-600 hover:underline">
+            &larr; Admin
+          </Link>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Author Duplicate Management</h1>
           <p className="text-gray-600">Review and manage duplicate author entries to maintain data quality.</p>
         </div>
