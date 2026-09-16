@@ -1,4 +1,5 @@
 import { db, type Author } from '@/server/db';
+import { authorNameKey, flipLastnameFirst } from './authorNameKey';
 
 // Types for duplicate detection
 export interface AuthorSimilarity {
@@ -27,27 +28,14 @@ export interface AuthorSimilarity {
 export class AuthorDuplicateDetector {
     // Normalize author name for comparison
     private normalizeAuthorName(name: string): string {
-        return name
-            .toLowerCase()
-            .replace(/[^a-z0-9\s]/g, '') // Remove punctuation
-            .replace(/\s+/g, ' ')         // Normalize whitespace
-            .trim();
-    }
-
-    // Check if name is in "Last, First" format
-    private isLastnameFirst(name: string): boolean {
-        return name.includes(',');
+        // Shared with scripts/merge-duplicate-authors.ts so the merge script's
+        // cluster assertion cannot drift from exactMatch.
+        return authorNameKey(name);
     }
 
     // Flip "Last, First" to "First Last"
     private flipName(name: string): string {
-        if (!this.isLastnameFirst(name)) return name;
-        
-        const parts = name.split(',').map(p => p.trim());
-        if (parts.length === 2) {
-            return `${parts[1]} ${parts[0]}`;
-        }
-        return name;
+        return flipLastnameFirst(name);
     }
 
     // Extract name components
