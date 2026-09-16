@@ -255,7 +255,7 @@ export function authorNameKey(name: string): string {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx tsx --test tests/authorNameKey.test.ts`
-Expected: PASS, 8 tests.
+Expected: PASS, 7 tests (3 for flipLastnameFirst, 4 for authorNameKey).
 
 - [ ] **Step 5: Point the detector at the shared function**
 
@@ -287,7 +287,7 @@ Note `normalizeAuthorName` previously did NOT flip, while `authorNameKey` does. 
 - [ ] **Step 6: Run the whole suite and typecheck**
 
 Run: `npm test && npm run typecheck`
-Expected: PASS, 104 pre-existing tests plus 8 new ones, no type errors.
+Expected: PASS, 104 pre-existing tests plus 7 new ones, no type errors.
 
 - [ ] **Step 7: Commit**
 
@@ -954,7 +954,7 @@ And add the field to the success response, after `authorsDeleted: result.authors
 - [ ] **Step 4: Typecheck and run the suite**
 
 Run: `npm run typecheck && npm test && npm run lint`
-Expected: no type errors, 104 + 31 tests pass, no lint errors.
+Expected: no type errors, 134 tests pass (104 pre-existing + 30 from Tasks 1-4), no lint errors.
 
 `authorsToMerge` is typed from `db.author.findMany({ include: { books: true } })`, which returns every scalar column, so it already satisfies `ExternalIdCarrier`. If the compiler disagrees, the cause is `books` being an extra property — structural typing permits that, so no cast is needed.
 
@@ -1350,7 +1350,7 @@ git commit -m "add the duplicate author merge script, dry run by default"
 - [ ] **Step 1: Run every gate**
 
 Run: `npm run lint && npm run typecheck && npm test && npm run build`
-Expected: all clean; 104 pre-existing plus 31 new tests.
+Expected: all clean; 134 tests (104 pre-existing plus 30 from Tasks 1-4: 7 + 9 + 6 + 8).
 
 - [ ] **Step 2: Merge to main and push**
 
