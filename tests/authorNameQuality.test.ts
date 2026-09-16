@@ -68,4 +68,23 @@ describe('scoreNameQuality', () => {
         assert.equal(typeof scoreNameQuality('&'), 'number');
         assert.equal(typeof scoreNameQuality(''), 'number');
     });
+
+    it('prefers an unspaced initial run over its all-caps-looking mangling', () => {
+        // "C.S." loses its periods when alphaTokens strips punctuation,
+        // becoming "CS" -- indistinguishable from a shouted token unless the
+        // raw source is consulted.
+        better('C.S. Lewis', 'Cs Lewis');
+        better('J.R.R. Tolkien', 'Jrr Tolkien');
+    });
+
+    it('prefers uppercase initials in an unspaced run over lowercase ones', () => {
+        better('C.S. Lewis', 'C.s. Lewis');
+        better('P.D. James', 'P.d. James');
+        better('H.P. Lovecraft', 'H.p. Lovecraft');
+    });
+
+    it('prefers canonical roman numeral and credential suffixes added to CANONICAL_SUFFIXES', () => {
+        better('Henry Ford VIII', 'Henry Ford Viii');
+        better('Jane Doe MFA', 'Jane Doe Mfa');
+    });
 });

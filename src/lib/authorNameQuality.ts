@@ -23,7 +23,22 @@ const CANONICAL_SUFFIXES = new Map<string, string>([
     ['ii', 'II'],
     ['iii', 'III'],
     ['iv', 'IV'],
+    ['v', 'V'],
+    ['vi', 'VI'],
+    ['vii', 'VII'],
+    ['viii', 'VIII'],
+    ['mfa', 'MFA'],
+    ['cpa', 'CPA'],
+    ['lcsw', 'LCSW'],
+    ['esq', 'Esq'],
 ]);
+
+/**
+ * An unspaced run of two or more capitalized initials, each followed by a
+ * period: "C.S.", "J.R.R.", "P.D.". Uppercase-only is deliberate: it makes
+ * "P.D." score above "P.d.", and "C.S." above "C.s.".
+ */
+const UNSPACED_INITIAL_RUN = /^(?:[A-Z]\.){2,}$/u;
 
 /** Surname prefixes that take an internal capital. */
 const CELTIC_PREFIX = /\b(?:Mc|Mac|O'|D')([A-Z])/u;
@@ -47,18 +62,25 @@ function isCanonicalSuffixToken(token: string, index: number): boolean {
     return index >= 1 && CANONICAL_SUFFIXES.get(token.toLowerCase()) === token;
 }
 
-/** Alphabetic tokens, stripped of surrounding punctuation. */
-function alphaTokens(name: string): string[] {
+/**
+ * Whitespace-delimited tokens paired with their alphabetic form (stripped of
+ * surrounding punctuation). Kept as pairs -- rather than two separately
+ * filtered arrays -- so a given index's raw and alpha forms can never drift
+ * apart, e.g. when deciding whether "C.S." earned its ALL-CAPS look from
+ * real initials rather than from shouting.
+ */
+function alphaTokenPairs(name: string): { raw: string; alpha: string }[] {
     return name
         .split(/\s+/u)
-        .map(t => t.replace(/[^a-zA-Z']/gu, ''))
-        .filter(t => t.length > 0);
+        .map(raw => ({ raw, alpha: raw.replace(/[^a-zA-Z']/gu, '') }))
+        .filter(pair => pair.alpha.length > 0);
 }
 
 export function scoreNameQuality(name: string): number {
     let score = 0;
     const letters = lettersOnly(name);
-    const tokens = alphaTokens(name);
+    const tokenPairs = alphaTokenPairs(name);
+    const tokens = tokenPairs.map(pair => pair.alpha);
 
     if (letters.length > 1) {
         if (letters === letters.toUpperCase()) {
@@ -72,11 +94,20 @@ export function scoreNameQuality(name: string): number {
     // A single shouty token is the common case in book metadata, and the
     // whole-name check above cannot see it. Credentials are legitimately
     // uppercase, and single letters are initials.
-    for (let i = 0; i < tokens.length; i++) {
-        const token = tokens[i];
+    //
+    // A raw token containing a period is exempt: alphaTokenPairs discards
+    // periods to build `alpha`, so "C.S." (raw) becomes "CS" (alpha) -- an
+    // all-caps token that never shouted, it's just initials without spaces.
+    // A leading "MD" has no period and stays penalized on purpose: "Md" is
+    // the standard abbreviation of Muhammad and a common leading given
+    // name, not a credential, when it is the first token (see
+    // isCanonicalSuffixToken).
+    for (let i = 0; i < tokenPairs.length; i++) {
+        const { raw, alpha: token } = tokenPairs[i];
         if (token.length > 1
             && token === token.toUpperCase()
-            && !isCanonicalSuffixToken(token, i)) {
+            && !isCanonicalSuffixToken(token, i)
+            && !raw.includes('.')) {
             score -= 2;
         }
     }
@@ -103,6 +134,23 @@ export function scoreNameQuality(name: string): number {
     // rather than as a mangled name.
     const initials = name.split(/\s+/u).filter(t => /^[A-Za-z]\.?$/u.test(t));
     if (initials.length > 0 && initials.every(t => t.endsWith('.'))) {
+        score += 1;
+    }
+
+    // An unspaced initial run, e.g. "C.S." or "J.R.R.", is initials typed
+    // without spaces rather than a mangled name -- reward it the same way
+    // spaced initials are rewarded above. This never fires alongside the
+    // spaced-initials bonus above: "C.S." and "J.R.R." are each one token,
+    // so they never appear in `initials` (which only holds single-letter
+    // tokens), and "J. R. R." never matches UNSPACED_INITIAL_RUN (which
+    // needs 2+ letter-period pairs inside one token).
+    //
+    // A single trailing period on the whole name is ignored here, mirroring
+    // the trailing-separator check below: "Tolkien J.R.R." must not out-
+    // score "Tolkien J.R.R" simply because its final initial happens to
+    // land at the very end of the string.
+    const wordsForInitialRun = name.trim().replace(/\.$/u, '').split(/\s+/u);
+    if (wordsForInitialRun.some(t => UNSPACED_INITIAL_RUN.test(t))) {
         score += 1;
     }
 
