@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/server/db';
+import { donatedExternalIds } from '@/lib/authorMergeIds';
 
 // POST /api/admin/duplicates/merge
 // Merge duplicate authors
@@ -160,10 +161,27 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // The losers are gone now, and any external id only they held would have
+      // gone with them -- links that cost third-party API quota to acquire.
+      // Move whatever the survivor lacks onto the survivor.
+      //
+      // After the deletes on purpose. No Author external id is unique any more,
+      // so the order is not forced -- but this way still works if a unique
+      // index is ever restored on one of these columns, and the reverse would
+      // raise P2002 the moment it was.
+      const donated = donatedExternalIds(targetAuthor, authorsToMerge);
+      if (Object.keys(donated).length > 0) {
+        await tx.author.update({
+          where: { id: targetAuthorId },
+          data: donated,
+        });
+      }
+
       return {
         mergeRecord,
         booksReassigned,
-        authorsDeleted: authorsToMerge.length
+        authorsDeleted: authorsToMerge.length,
+        donatedIds: Object.keys(donated)
       };
     });
 
@@ -175,7 +193,8 @@ export async function POST(request: NextRequest) {
         name: targetAuthor.name
       },
       booksReassigned: result.booksReassigned,
-      authorsDeleted: result.authorsDeleted
+      authorsDeleted: result.authorsDeleted,
+      donatedIds: result.donatedIds,
     });
 
   } catch (error) {
