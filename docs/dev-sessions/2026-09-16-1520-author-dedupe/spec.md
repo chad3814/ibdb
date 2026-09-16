@@ -57,6 +57,15 @@ This is fixed as part of this work, before any merge runs. Note that donating a
 dropped this morning; before that, copying an ID onto a survivor that already
 had one would have raised P2002.
 
+`Author.goodReadsId` and `Author.openLibraryId` carried the same unique indexes,
+which would have forced the donation to be sequenced after the row deletes.
+Those are dropped too, in `20260916195500_author_external_ids_not_unique`, on
+the same cardinality argument. They were safe to drop because neither column
+has ever held a value: 0 of 1,006,224 Author rows, and unpopulated on `Book` and
+`Edition` as well. Every Goodreads and OpenLibrary column in the schema is
+entirely NULL; only Hardcover is real. `Edition`'s unique indexes stay, since
+`isbn13` genuinely identifies one edition.
+
 ## Design
 
 ### Unit of work: the cluster

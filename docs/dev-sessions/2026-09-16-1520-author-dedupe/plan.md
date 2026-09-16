@@ -17,7 +17,7 @@
 - Prefer async APIs over synchronous twins.
 - Import Prisma as `import { db } from '@/server/db'` in `src/`, or `'../src/server/db'` in `scripts/`.
 - Path alias `@/*` maps to `src/*`.
-- `Author.goodReadsId` and `Author.openLibraryId` are still `@unique`. `Author.hardcoverId` is **not** (dropped in `20260916183000_author_hardcover_id_is_not_unique`). Any write that moves a `goodReadsId` or `openLibraryId` between rows must delete the old holder first.
+- **No** external-id column on `Author` is unique any more: `hardcoverId` lost its index in `20260916183000_author_hardcover_id_is_not_unique` and `goodReadsId`/`openLibraryId` in `20260916195500_author_external_ids_not_unique` (Task 0). Moving an external id between Author rows is therefore order-independent. `Edition`'s three equivalents are still unique and must stay that way.
 - Credentials come from 1Password inline and must never be written to a file, echoed, or logged:
   `ADMIN_SECRET="$(op read op://mcp/IBDb-admin/credential)"` and
   `DATABASE_URL="$(op read op://mcp/IBDb-Prod-DB/credential)"` (unpooled endpoint).
@@ -31,6 +31,7 @@
 
 | File | Responsibility |
 | --- | --- |
+| `prisma/schema.prisma` + `prisma/migrations/20260916195500_author_external_ids_not_unique/` | Modify/Create. Drop the unique indexes on `Author.goodReadsId` and `Author.openLibraryId`. |
 | `src/lib/authorNameKey.ts` | Create. The cluster key: the detector's normalization, extracted so the two cannot drift. |
 | `src/lib/authorNameQuality.ts` | Create. `scoreNameQuality(name)` — typography only, no I/O. |
 | `src/lib/authorMergeTarget.ts` | Create. `pickMergeTarget(members)` — the 4-rung cascade. |
@@ -42,6 +43,92 @@
 | `tests/authorNameQuality.test.ts` | Create. |
 | `tests/authorMergeTarget.test.ts` | Create. |
 | `tests/authorMergeIds.test.ts` | Create. |
+
+---
+
+## Task 0: Drop the remaining unique indexes on Author external ids
+
+**Status: already applied on this branch.** Schema edited, migration written, and
+verified on Neon branch `br-little-firefly-a5cty27d`. Gates still to run in Task 7.
+
+**Files:**
+- Modify: `prisma/schema.prisma` (the `Author` model's `openLibraryId` and `goodReadsId`)
+- Create: `prisma/migrations/20260916195500_author_external_ids_not_unique/migration.sql`
+
+**Interfaces:** none. Schema only.
+
+**Why:** the same cardinality argument as `hardcoverId`. An Author row is one
+name string, so several rows are one person and would compete for a single
+external id. Neither column has ever held a value -- 0 of 1,006,224 rows,
+and unpopulated on `Book` and `Edition` too -- so these indexes never caught a
+duplicate. What they did do was force the external-id donation in Task 5 to be
+sequenced after the row deletes. Dropping them removes that constraint.
+
+- [ ] **Step 1: Edit the schema**
+
+In `prisma/schema.prisma`, replace the two `@unique` fields on `Author`:
+
+```prisma
+  /// Not unique, for the same reason hardcoverId is not: an Author row is one
+  /// name string, so several rows are the same person and would compete for
+  /// one external id. Both columns are also entirely unpopulated -- 0 of
+  /// 1,006,224 rows -- so the indexes only ever constrained merges.
+  openLibraryId String?
+  goodReadsId   String?
+```
+
+- [ ] **Step 2: Write the migration**
+
+Create `prisma/migrations/20260916195500_author_external_ids_not_unique/migration.sql`
+with a comment block explaining the cardinality argument and the zero-population
+evidence, then:
+
+```sql
+-- DropIndex
+DROP INDEX IF EXISTS "Author_goodReadsId_key";
+
+-- DropIndex
+DROP INDEX IF EXISTS "Author_openLibraryId_key";
+```
+
+Both are plain unique indexes with no backing constraint, verified via
+`pg_constraint`, so `DROP INDEX` is correct rather than
+`ALTER TABLE ... DROP CONSTRAINT`.
+
+- [ ] **Step 3: Regenerate the client**
+
+Run: `./node_modules/.bin/prisma generate`
+Expected: `Generated Prisma Client`. Use the local binary, not `npx prisma` --
+`npx` resolves a newer major from the registry that has no `generate` command.
+
+- [ ] **Step 4: Verify on a Neon branch**
+
+Create a branch of project `twilight-river-29437197`, then confirm the
+constraint bites before and not after:
+
+```sql
+-- pre-migration: expect "duplicate key value violates unique constraint"
+UPDATE "Author" SET "goodReadsId" = 'gr-test-1'
+ WHERE id IN ('c2fe3fb3-da21-4bb6-acc1-252ffbe91732','c4d88649-1c01-4384-8636-87f327c31bbb');
+
+DROP INDEX IF EXISTS "Author_goodReadsId_key";
+DROP INDEX IF EXISTS "Author_openLibraryId_key";
+
+-- post-migration: expect success, both rows sharing the value
+UPDATE "Author" SET "goodReadsId" = 'gr-test-1', "openLibraryId" = 'ol-test-1'
+ WHERE id IN ('c2fe3fb3-da21-4bb6-acc1-252ffbe91732','c4d88649-1c01-4384-8636-87f327c31bbb');
+```
+
+Run the two `DROP INDEX` statements one per call; Neon's SQL endpoint rejects
+multiple commands in one prepared statement. Delete the branch afterwards with
+Chad's approval.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add prisma/schema.prisma prisma/migrations/20260916195500_author_external_ids_not_unique
+git commit -m "drop the unique indexes on Author.goodReadsId and openLibraryId"
+```
 
 ---
 
@@ -790,7 +877,7 @@ git commit -m "pick the surviving author row by a deterministic cascade"
 - Consumes: `donatedExternalIds` from Task 3.
 - Produces: no new exports. The endpoint's JSON response gains a `donatedIds` field listing which keys moved.
 
-**Ordering is load-bearing.** The donation must run **after** `tx.author.delete`, not before. `Author.goodReadsId` and `Author.openLibraryId` are still `@unique`, so writing a loser's value onto the survivor while that loser still exists raises P2002. Only `hardcoverId` lost its unique index this morning.
+**Ordering is no longer load-bearing, but keep it after the deletes.** Task 0 removed the last unique index on an `Author` external id, so donating before or after the deletes is now equivalent. It stays after them as the more robust order: if a unique index is ever restored on one of these columns, this sequence still works and the reverse would not.
 
 This file uses **2-space** indentation.
 
@@ -822,10 +909,10 @@ Insert immediately after it, still inside the transaction callback:
       // gone with them -- links that cost third-party API quota to acquire.
       // Move whatever the survivor lacks onto the survivor.
       //
-      // Deliberately after the deletes: goodReadsId and openLibraryId are still
-      // @unique on Author, so assigning a loser's value while that loser still
-      // existed would raise P2002. hardcoverId lost its unique index in
-      // 20260916183000_author_hardcover_id_is_not_unique.
+      // After the deletes on purpose. No Author external id is unique any more,
+      // so the order is not forced -- but this way still works if a unique
+      // index is ever restored on one of these columns, and the reverse would
+      // raise P2002 the moment it was.
       const donated = donatedExternalIds(targetAuthor, authorsToMerge);
       if (Object.keys(donated).length > 0) {
         await tx.author.update({
@@ -906,9 +993,10 @@ the fixed endpoint's statement order against that branch:
   ROLLBACK;
 
 Expected: the UPDATE succeeds and the survivor ends up holding the loser's
-hardcoverId. Then confirm the ordering actually matters by running the UPDATE
-BEFORE the DELETE using a goodReadsId instead, and observing the unique
-violation. Delete the branch afterwards, with Chad's approval.
+hardcoverId. Also run the same pair of statements in the reverse order (UPDATE
+then DELETE) and confirm it now also succeeds -- after Task 0 there is no
+unique index left on any Author external id to make the order matter. Delete
+the branch afterwards, with Chad's approval.
 ```
 
 - [ ] **Step 6: Commit**
@@ -1325,10 +1413,10 @@ Compare the orphan count against the same query run before execution — it must
 
 ## Self-Review
 
-**Spec coverage:** clustering with assertion (Task 6), 4-rung cascade (Task 4), typography weights (Task 2), external-ID donation (Tasks 3 and 5), dismissals (Task 6), dry-run default and batching (Task 6), error handling and idempotency (Task 6), unit tests (Tasks 1-4), Neon-branch verification (Task 5), sequencing (Task 7). The spec's "out of scope" list stays out.
+**Spec coverage:** unique-index removal (Task 0), clustering with assertion (Task 6), 4-rung cascade (Task 4), typography weights (Task 2), external-ID donation (Tasks 3 and 5), dismissals (Task 6), dry-run default and batching (Task 6), error handling and idempotency (Task 6), unit tests (Tasks 1-4), Neon-branch verification (Task 5), sequencing (Task 7). The spec's "out of scope" list stays out.
 
 **Deviation from the approved design, flagged for Chad:**
-1. ID donation happens **after** the deletes, not before as the approved preview showed. `goodReadsId` and `openLibraryId` are still `@unique`, so donating before the delete would raise P2002.
+1. ID donation happens **after** the deletes, not before as the approved preview showed. That was originally forced by the `@unique` indexes on `goodReadsId` and `openLibraryId`; Task 0 has since dropped those at Chad's request, so the order is now a robustness choice rather than a requirement.
 2. The cluster key **preserves spaces**, matching the detector. The spec's 2,538 was computed with a space-stripped key, so the dry run may report a slightly different number.
 3. The typography table gains a **Celtic-prefix rule** (+1 for `McCammon` over `Mccammon`, −1 for the reverse) not in the approved table. Without it that very common cluster shape falls through to `age`, which is arbitrary.
 

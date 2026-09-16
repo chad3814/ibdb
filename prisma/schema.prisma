@@ -79,8 +79,12 @@ model Author {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   name          String
-  openLibraryId String?  @unique
-  goodReadsId   String?  @unique
+  /// Not unique, for the same reason hardcoverId is not: an Author row is one
+  /// name string, so several rows are the same person and would compete for
+  /// one external id. Both columns are also entirely unpopulated -- 0 of
+  /// 1,006,224 rows -- so the indexes only ever constrained merges.
+  openLibraryId String?
+  goodReadsId   String?
   /// Deliberately NOT unique. One real person owns many rows here, because a
   /// row is one author *name string* -- R. R. McCammon has 17 (`Robert
   /// McCammon`, `Robert R. McCammon`, `McCammon,Robert`, `Mccammon`, ...), and
