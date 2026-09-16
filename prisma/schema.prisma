@@ -81,12 +81,24 @@ model Author {
   name          String
   openLibraryId String?  @unique
   goodReadsId   String?  @unique
-  hardcoverId   Int?     @unique
+  /// Deliberately NOT unique. One real person owns many rows here, because a
+  /// row is one author *name string* -- R. R. McCammon has 17 (`Robert
+  /// McCammon`, `Robert R. McCammon`, `McCammon,Robert`, `Mccammon`, ...), and
+  /// any two of them that match the same Hardcover author collide. Hardcover
+  /// has duplicate author records of its own, so the mapping is n:1 in both
+  /// directions. Book_hardcoverId_key was dropped for exactly this reason in
+  /// 20250914040401_remove_uniqueness_for_external_ids; Edition.hardcoverId
+  /// stays unique because isbn13 really is 1:1 with a Hardcover edition.
+  hardcoverId   Int?
   hardcoverSlug String?
 
   books Book[]
 
   @@unique([name])
+  // No index on hardcoverId: nothing filters or joins on it. Every author
+  // lookup is by id or name, and /api/missing/[external] filters Edition and
+  // only selects this field. An unused index on a 1M-row table costs a build
+  // lock during `prisma migrate deploy` and slows every author write.
 }
 
 model Image {

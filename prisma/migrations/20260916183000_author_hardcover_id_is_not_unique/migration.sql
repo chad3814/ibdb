@@ -1,0 +1,35 @@
+-- Author.hardcoverId is n:1, not 1:1, so the unique index was wrong.
+--
+-- An Author row is one author *name string*, not one person: Author_name_key
+-- makes the name the real identity. R. R. McCammon owns 17 rows -- `Robert
+-- McCammon`, `Robert R. McCammon`, `Robert Mccammon`, `McCammon,Robert`,
+-- `McCammon, Robert (Author)`, `Mccammon`, ... -- and buildEnrichment matches a
+-- Hardcover contribution to one of ours by exact name. So as soon as Hardcover
+-- credits an edition to a variant whose sibling already holds that author id,
+-- author.update raises P2002 on this index.
+--
+-- That took the whole book down with it, not just the author: applyEnrichment
+-- writes the edition id, the book id, and the queue delete in one transaction,
+-- so the collision rolled back the ids too and left the book queued.
+-- HardcoverQueue has no attempt counter, so the book came back newest-first and
+-- failed again every run, spending a Hardcover request each time, forever.
+--
+-- Book_hardcoverId_key was dropped for the same reason in
+-- 20250914040401_remove_uniqueness_for_external_ids, and the data agrees: 4,033
+-- Hardcover book ids are each claimed by 2+ Book rows. Authors are further
+-- along the same road -- 4,339 name-variant groups already hold one enriched
+-- row plus an unenriched sibling, counting only case and punctuation
+-- differences, and 9 groups hold two *different* hardcoverIds, which means
+-- Hardcover has duplicate author records of its own. The mapping is n:1 in both
+-- directions.
+--
+-- Edition.hardcoverId keeps its unique index: isbn13 is unique here and the
+-- lookup is `isbn_13: {_eq: ...}`, so that one really is 1:1.
+--
+-- No replacement index. Nothing filters or joins on Author.hardcoverId --
+-- author lookups go by id or name, and /api/missing/[external] filters Edition
+-- and merely selects this column -- so an index over 1,005,814 rows would cost
+-- a build lock here and a write penalty forever while serving no read.
+
+-- DropIndex
+DROP INDEX IF EXISTS "Author_hardcoverId_key";
