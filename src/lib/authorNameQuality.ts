@@ -33,6 +33,20 @@ function lettersOnly(name: string): string {
     return name.replace(/[^a-zA-Z]/gu, '');
 }
 
+/**
+ * Whether `token` is a known credential/suffix, appearing in its canonical
+ * form, at a position where a credential can occur.
+ *
+ * Index 0 is deliberately excluded: "Md" is the standard abbreviation of
+ * Muhammad and a common leading given name, not a credential, when it is
+ * the first token. A trailing "Md" is always the credential. Both the
+ * suffix bonus and the ALL-CAPS penalty exemption below share this check,
+ * so a leading "MD" is never treated as an immune credential by either.
+ */
+function isCanonicalSuffixToken(token: string, index: number): boolean {
+    return index >= 1 && CANONICAL_SUFFIXES.get(token.toLowerCase()) === token;
+}
+
 /** Alphabetic tokens, stripped of surrounding punctuation. */
 function alphaTokens(name: string): string[] {
     return name
@@ -55,15 +69,26 @@ export function scoreNameQuality(name: string): number {
         }
     }
 
+    // A single shouty token is the common case in book metadata, and the
+    // whole-name check above cannot see it. Credentials are legitimately
+    // uppercase, and single letters are initials.
+    for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        if (token.length > 1
+            && token === token.toUpperCase()
+            && !isCanonicalSuffixToken(token, i)) {
+            score -= 2;
+        }
+    }
+
     // Every alphabetic token starting with a capital. Deliberately does not
     // require the remainder to be lowercase: McCammon and O'Brien are correct.
     if (tokens.length > 0 && tokens.every(t => t[0] === t[0].toUpperCase())) {
         score += 2;
     }
 
-    for (const token of tokens) {
-        const canonical = CANONICAL_SUFFIXES.get(token.toLowerCase());
-        if (canonical && token === canonical) {
+    for (let i = 1; i < tokens.length; i++) {
+        if (isCanonicalSuffixToken(tokens[i], i)) {
             score += 2;
         }
     }

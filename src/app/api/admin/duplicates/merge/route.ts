@@ -2,12 +2,35 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/server/db';
 import { donatedExternalIds } from '@/lib/authorMergeIds';
 
+// A 14-member cluster with 30 books can issue ~450 sequential statements in
+// this one interactive transaction -- well past Prisma's 5s default. Match
+// the precedent set for a comparable write in applyEnrichment
+// (src/server/hardcoverEnrich.ts).
+const MERGE_TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
+
+// Matches the cron route's budget (src/app/api/cron/hardcover/route.ts):
+// the transaction above can legitimately run for tens of seconds.
+export const maxDuration = 60;
+
+type MergeTxResult =
+  | { kind: 'already-merged' }
+  | { kind: 'not-found' }
+  | { kind: 'target-not-found' }
+  | {
+      kind: 'success';
+      mergeId: string;
+      targetAuthorName: string;
+      booksReassigned: number;
+      authorsDeleted: number;
+      donatedIds: string[];
+    };
+
 // POST /api/admin/duplicates/merge
 // Merge duplicate authors
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { 
+    const {
       authorIds, // Array of author IDs to merge
       targetAuthorId, // The author to keep
       mergedBy = 'admin', // TODO: Get from auth
@@ -29,43 +52,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get all authors involved
-    const authors = await db.author.findMany({
-      where: { id: { in: authorIds } },
-      include: {
-        books: true
+    // Reading the authors, and every check that depends on that read, happens
+    // inside the transaction below. Reading them beforehand (as this used to)
+    // left a window between the read and tx.author.delete's join-table cascade
+    // where a book connected to a loser would be silently orphaned -- no
+    // error, no audit trace. Early exits from inside a transaction can't
+    // produce an HTTP response directly, so the callback returns a
+    // discriminated result and the outer code below translates it.
+    const result = await db.$transaction(async (tx): Promise<MergeTxResult> => {
+      const authors = await tx.author.findMany({
+        where: { id: { in: authorIds } },
+        include: {
+          books: true
+        }
+      });
+
+      if (authors.length !== authorIds.length) {
+        if (authors.length === 1 && authors[0].id === targetAuthorId) {
+          // assume already merged
+          return { kind: 'already-merged' };
+        }
+        return { kind: 'not-found' };
       }
-    });
 
-    if (authors.length !== authorIds.length) {
-      if (authors.length === 1 && authors[0].id === targetAuthorId) {
-        // assume already merged
-        return NextResponse.json({
-            status: 'success',
-        });
+      const targetAuthor = authors.find(a => a.id === targetAuthorId);
+      if (!targetAuthor) {
+        return { kind: 'target-not-found' };
       }
-      return NextResponse.json(
-        { error: 'Some authors not found' },
-        { status: 404 }
-      );
-    }
 
-    const targetAuthor = authors.find(a => a.id === targetAuthorId);
-    if (!targetAuthor) {
-      console.error('target author not found', targetAuthorId);
-      return NextResponse.json(
-        { error: 'Target author not found' },
-        { status: 404 }
-      );
-    }
-
-    // Start a transaction for the merge
-    const result = await db.$transaction(async (tx) => {
       // Get all books from authors being merged (excluding target)
       const authorsToMerge = authors.filter(a => a.id !== targetAuthorId);
       const bookIdsToReassign = new Set<string>();
 
+      // One set per loser, computed once, so the disconnect below only runs
+      // for a loser actually connected to the book in question instead of
+      // firing unconditionally for every loser on every book.
+      const loserBookIds = new Map<string, Set<string>>();
       for (const author of authorsToMerge) {
+        loserBookIds.set(author.id, new Set(author.books.map(book => book.id)));
         for (const book of author.books) {
           bookIdsToReassign.add(book.id);
         }
@@ -97,8 +121,13 @@ export async function POST(request: NextRequest) {
           booksReassigned++;
         }
 
-        // Disconnect the book from the merged authors
+        // Disconnect the book from the merged authors that are actually
+        // connected to it.
         for (const author of authorsToMerge) {
+          const bookIds = loserBookIds.get(author.id) ?? new Set<string>();
+          if (!bookIds.has(bookId)) {
+            continue;
+          }
           await tx.book.update({
             where: { id: bookId },
             data: {
@@ -178,24 +207,44 @@ export async function POST(request: NextRequest) {
       }
 
       return {
-        mergeRecord,
+        kind: 'success',
+        mergeId: mergeRecord.id,
+        targetAuthorName: targetAuthor.name,
         booksReassigned,
         authorsDeleted: authorsToMerge.length,
         donatedIds: Object.keys(donated)
       };
-    });
+    }, MERGE_TRANSACTION_OPTIONS);
 
-    return NextResponse.json({
-      status: 'success',
-      mergeId: result.mergeRecord.id,
-      targetAuthor: {
-        id: targetAuthorId,
-        name: targetAuthor.name
-      },
-      booksReassigned: result.booksReassigned,
-      authorsDeleted: result.authorsDeleted,
-      donatedIds: result.donatedIds,
-    });
+    switch (result.kind) {
+      case 'already-merged':
+        return NextResponse.json({
+          status: 'success',
+        });
+      case 'not-found':
+        return NextResponse.json(
+          { error: 'Some authors not found' },
+          { status: 404 }
+        );
+      case 'target-not-found':
+        console.error('target author not found', targetAuthorId);
+        return NextResponse.json(
+          { error: 'Target author not found' },
+          { status: 404 }
+        );
+      case 'success':
+        return NextResponse.json({
+          status: 'success',
+          mergeId: result.mergeId,
+          targetAuthor: {
+            id: targetAuthorId,
+            name: result.targetAuthorName
+          },
+          booksReassigned: result.booksReassigned,
+          authorsDeleted: result.authorsDeleted,
+          donatedIds: result.donatedIds,
+        });
+    }
 
   } catch (error) {
     console.error('Error merging authors:', error);

@@ -13,16 +13,19 @@
  * Usage:
  *   ADMIN_SECRET="$(op read op://mcp/IBDb-admin/credential)" \
  *   DATABASE_URL="$(op read op://mcp/IBDb-Prod-DB/credential)" \
- *     npx tsx scripts/merge-duplicate-authors.ts [--execute] [--limit N] [--out FILE]
+ *     npx tsx scripts/merge-duplicate-authors.ts [--execute] [--limit N] [--out FILE] [--skip ID,ID,...]
  */
 
 import { writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { db } from '../src/server/db';
 import { authorNameKey } from '../src/lib/authorNameKey';
 import { pickMergeTarget, type MergeCandidate, type TargetRule } from '../src/lib/authorMergeTarget';
 
 const BASE_URL = process.env.IBDB_BASE_URL ?? 'https://ibdb.dev';
-const BATCH_SIZE = 25;
+// Merges run one at a time against the admin endpoint, never concurrently --
+// this only controls how often progress is logged.
+const PROGRESS_EVERY = 25;
 
 type Plan = {
   key: string;
@@ -35,15 +38,28 @@ type Plan = {
 
 type Skipped = { key: string; reason: string; memberIds: string[] };
 
-function parseArgs(argv: string[]): { execute: boolean; limit: number|null; out: string } {
+function parseArgs(argv: string[]): { execute: boolean; limit: number|null; out: string; skip: Set<string> } {
   const execute = argv.includes('--execute');
   const limitIdx = argv.indexOf('--limit');
   const outIdx = argv.indexOf('--out');
+  const skipIdx = argv.indexOf('--skip');
+  const skipArg = skipIdx >= 0 ? argv[skipIdx + 1] : undefined;
   return {
     execute,
     limit: limitIdx >= 0 ? Number(argv[limitIdx + 1]) : null,
     out: outIdx >= 0 ? argv[outIdx + 1] : 'author-merge-plan.tsv',
+    skip: new Set(
+      skipArg === undefined
+        ? []
+        : skipArg.split(',').map(s => s.trim()).filter(s => s.length > 0)
+    ),
   };
+}
+
+/** Collapses internal whitespace, so a name containing a tab or newline
+ * cannot break the row structure of the TSV that is the human review gate. */
+function sanitizeField(value: string): string {
+  return value.replace(/\s+/g, ' ');
 }
 
 /** Union-find over the similarity graph. */
@@ -76,21 +92,21 @@ class Groups {
 type PendingSimilarity = {
   id: string;
   confidence: string;
+  score: number;
   author1Id: string;
   author1Name: string;
   author2Id: string;
   author2Name: string;
 };
 
-/** The current pending queue. Called twice: once before any writes, and
- * again after the merge loop, because the merge cascade can resolve some of
- * these rows to 'merged' mid-run. */
+/** The current pending queue. */
 async function fetchPendingSimilarities(): Promise<PendingSimilarity[]> {
   return db.authorSimilarity.findMany({
     where: { status: 'pending' },
     select: {
       id: true,
       confidence: true,
+      score: true,
       author1Id: true,
       author1Name: true,
       author2Id: true,
@@ -100,29 +116,21 @@ async function fetchPendingSimilarities(): Promise<PendingSimilarity[]> {
 }
 
 /**
- * The ids to dismiss as false positives: anything degenerate (no
+ * The rows to dismiss as false positives: anything degenerate (no
  * alphanumerics in either name, so it normalizes to the same empty string)
- * plus the non-exact confidence band, which is mojibake, spreadsheet residue
- * and romanized transliterations of different people. Never merged, always
- * dismissed.
+ * plus 'high' confidence, which is the band actually measured against real
+ * dismissals -- 66 'high' plus 3 degenerate at review time. 'medium' and
+ * 'low' are not dismissed here: the type admits them, but no one has looked
+ * at a sample of either band, and sharedExternalIds matches in
+ * authorDuplicateDetector.ts produce genuine-duplicate 'high' rows, so this
+ * criterion must stay narrow rather than sweeping up an unmeasured band.
  */
-function computeDismissIds(rows: PendingSimilarity[]): string[] {
-  return [
-    ...new Set(
-      rows
-        .filter(
-          p =>
-            authorNameKey(p.author1Name) === '' ||
-            authorNameKey(p.author2Name) === '' ||
-            p.confidence !== 'exact'
-        )
-        .map(p => p.id)
-    ),
-  ];
+function computeDismissRows(rows: PendingSimilarity[], degenerateIds: Set<string>): PendingSimilarity[] {
+  return rows.filter(p => degenerateIds.has(p.id) || p.confidence === 'high');
 }
 
 async function main(): Promise<void> {
-  const { execute, limit, out } = parseArgs(process.argv.slice(2));
+  const { execute, limit, out, skip } = parseArgs(process.argv.slice(2));
   console.log(`mode: ${execute ? 'EXECUTE (will write)' : 'dry run'}`);
 
   const pending = await fetchPendingSimilarities();
@@ -135,14 +143,29 @@ async function main(): Promise<void> {
   );
   const degenerateIds = new Set(degenerate.map(d => d.id));
 
-  // Pre-execute snapshot: accurate for the dry-run report below, since a dry
-  // run performs no writes. The executing path re-derives this after the
-  // merge loop runs instead of reusing this snapshot -- see the comment
-  // above the fresh query later in this function.
-  const dismissIds = computeDismissIds(pending);
+  const skipped: Skipped[] = [];
+
+  const dismissRows = computeDismissRows(pending, degenerateIds);
+  const dismissIds = dismissRows.map(r => r.id);
+
+  // Everything that is neither mergeable (below) nor dismissed above: a
+  // confidence band no one has measured. Recorded as skipped, with the band
+  // named, rather than silently dropped or swept into dismiss.
+  const unmeasured = pending.filter(
+    p => !degenerateIds.has(p.id) && p.confidence !== 'exact' && p.confidence !== 'high'
+  );
+  for (const p of unmeasured) {
+    skipped.push({
+      key: authorNameKey(p.author1Name),
+      reason: `unmeasured confidence band: ${p.confidence}`,
+      memberIds: [p.author1Id, p.author2Id],
+    });
+  }
 
   const mergeable = pending.filter(p => p.confidence === 'exact' && !degenerateIds.has(p.id));
-  console.log(`to dismiss: ${dismissIds.length}   mergeable pairs: ${mergeable.length}`);
+  console.log(
+    `to dismiss: ${dismissIds.length}   mergeable pairs: ${mergeable.length}   unmeasured (skipped): ${unmeasured.length}`
+  );
 
   const groups = new Groups();
   for (const p of mergeable) {
@@ -201,7 +224,7 @@ async function main(): Promise<void> {
   }
 
   const plans: Plan[] = [];
-  const skipped: Skipped[] = [];
+  let skippedByFlag = 0;
 
   for (const [root, memberIds] of components) {
     const members = [...memberIds].map(id => authors.get(id)).filter(m => m !== undefined);
@@ -222,6 +245,22 @@ async function main(): Promise<void> {
       continue;
     }
 
+    // authorNameKey strips accented characters rather than folding them, so
+    // "José Saramago" and "Jos Saramago" can share the key above.
+    // scoreNameQuality is just as blind to accents (it only sees a-zA-Z'
+    // tokens), so nothing downstream could decide between them -- a merge
+    // here would pick the surviving spelling by the arbitrary age rung.
+    // Skip instead of guessing which spelling is correct.
+    const nonAsciiVariants = new Set(members.map(m => m.name.replace(/[\x00-\x7F]/gu, '')));
+    if (nonAsciiVariants.size !== 1) {
+      skipped.push({
+        key: members[0].key,
+        reason: 'cluster members differ in non-ASCII characters',
+        memberIds: members.map(m => m.id),
+      });
+      continue;
+    }
+
     const outcome = pickMergeTarget(members);
     if (outcome.kind === 'needs-review') {
       skipped.push({ key: members[0].key, reason: outcome.reason, memberIds: members.map(m => m.id) });
@@ -236,13 +275,34 @@ async function main(): Promise<void> {
       // instead of continuing.
       throw new Error(`merge target ${outcome.targetId} not found among cluster members for root ${root}`);
     }
+
+    if (skip.has(target.id)) {
+      skippedByFlag++;
+      skipped.push({
+        key: target.key,
+        reason: 'excluded via --skip',
+        memberIds: members.map(m => m.id),
+      });
+      continue;
+    }
+
+    const similarityIds = componentSimilarities.get(root);
+    if (similarityIds === undefined) {
+      // Unreachable: componentSimilarities is seeded for every root
+      // alongside `components`, in the same loop above. Defaulting to an
+      // empty list here would silently drop this cluster's similarity ids
+      // from the merge request, skipping the AuthorSimilarity status
+      // cascade for it with no record of why -- fail instead.
+      throw new Error(`no similarity ids recorded for root ${root}`);
+    }
+
     plans.push({
       key: target.key,
       targetId: target.id,
       targetName: target.name,
       rule: outcome.rule,
       losers: members.filter(m => m.id !== target.id),
-      similarityIds: componentSimilarities.get(root) ?? [],
+      similarityIds,
     });
   }
 
@@ -253,10 +313,25 @@ async function main(): Promise<void> {
     byRule.set(p.rule, (byRule.get(p.rule) ?? 0) + 1);
   }
 
-  const lines = ['key\ttarget_name\ttarget_id\trule\tbooks\tlosers'];
+  const lines: string[] = [];
+  // Two components can legitimately share a name key if the similarity
+  // graph never connected them -- duplicate `key` values below are expected,
+  // not a bug in the clustering.
+  lines.push('# duplicate `key` values across rows are expected: two components can');
+  lines.push('# share a name key if the similarity graph never connected them.');
+  // pickMergeTarget routes any cluster with more than one external-id
+  // holder to needs-review, and otherwise promotes the sole holder to
+  // target -- so no loser in this run ever holds an external id.
+  // target_hardcover_id is included for completeness (the spec calls for
+  // "external ids at stake"), but this run never exercises the
+  // id-donation path in the merge endpoint.
+  lines.push('# target_hardcover_id is included for completeness, but with the current');
+  lines.push('# cascade no loser ever holds an external id, so this run does not');
+  lines.push('# exercise the id-donation path in the merge endpoint.');
+  lines.push('key\ttarget_name\ttarget_id\ttarget_hardcover_id\trule\tbooks\tlosers');
   for (const p of plans) {
     const losers = p.losers
-      .map(l => `${l.name} [${l.id.slice(0, 8)}] ${l.bookCount}bk${l.hardcoverId !== null ? ' hc' : ''}`)
+      .map(l => `${sanitizeField(l.name)} [${l.id}] ${l.bookCount}bk${l.hardcoverId !== null ? ' hc' : ''}`)
       .join(' | ');
     const target = authors.get(p.targetId);
     if (target === undefined) {
@@ -266,24 +341,48 @@ async function main(): Promise<void> {
       // in `plans` would execute unreviewed.
       throw new Error(`author ${p.targetId} not found while writing plan row for ${p.key}`);
     }
-    lines.push(`${p.key}\t${p.targetName}\t${p.targetId}\t${p.rule}\t${target.bookCount}\t${losers}`);
+    lines.push(
+      `${p.key}\t${sanitizeField(p.targetName)}\t${p.targetId}\t${target.hardcoverId ?? ''}\t${p.rule}\t${target.bookCount}\t${losers}`
+    );
   }
   lines.push('');
   lines.push('# SKIPPED (needs manual review)');
   for (const s of skipped) {
     lines.push(`# ${s.key}\t${s.reason}\t${s.memberIds.join(',')}`);
   }
-  await writeFile(out, lines.join('\n'), 'utf8');
+  lines.push('');
+  lines.push('# DISMISS (each row gets an audit note written when --execute runs)');
+  lines.push('# id\tconfidence\tscore\tauthor1_name\tauthor2_name');
+  for (const r of dismissRows) {
+    lines.push(`# ${r.id}\t${r.confidence}\t${r.score}\t${sanitizeField(r.author1Name)}\t${sanitizeField(r.author2Name)}`);
+  }
+
+  // A digest of the plan content, so an operator can tell whether the plan
+  // --execute is about to run against still matches the one they approved.
+  // --execute is a separate invocation that re-derives everything from live
+  // data, and live ingestion (src/server/isbndb.ts) can move book counts
+  // between approval and execution, flipping the book-count rung.
+  const digest = createHash('sha256').update(lines.join('\n')).digest('hex').slice(0, 12);
+  // --execute writes to a distinct path rather than overwriting `out`, so
+  // the approved artifact a human reviewed survives the run that acts on it.
+  const writePath = execute ? `${out}.executed` : out;
+  await writeFile(writePath, lines.join('\n'), 'utf8');
 
   console.log('');
-  console.log(`plan written to ${out}`);
+  console.log(`plan written to ${writePath}`);
+  console.log(`plan digest: ${digest}`);
   console.log(`  merges planned : ${plans.length}`);
   console.log(`  rows deleted   : ${plans.reduce((n, p) => n + p.losers.length, 0)}`);
   console.log(`  pairs dismissed: ${dismissIds.length}`);
   console.log(`  skipped        : ${skipped.length}`);
+  console.log(`  skipped by --skip flag: ${skippedByFlag}`);
+  console.log(`  unmeasured confidence (skipped): ${unmeasured.length}`);
   for (const [rule, n] of [...byRule].sort()) {
     console.log(`  decided by ${rule}: ${n}`);
   }
+  console.log(
+    `  before trusting this run, compare "plan digest" above against the digest printed for the approved ${out}`
+  );
 
   if (!execute) {
     console.log('');
@@ -296,9 +395,43 @@ async function main(): Promise<void> {
     throw new Error('ADMIN_SECRET is not set');
   }
 
+  // Dismissals run before merges. A merge's cascade
+  // (src/app/api/admin/duplicates/merge/route.ts) flips every still-pending
+  // similarity touching a merged author to 'merged'; if dismissals ran
+  // after merges, some of `dismissIds` could already be 'merged' rather
+  // than 'pending', and this used to need a second query to work out which.
+  // Running dismissals first means no merge has touched anything yet when
+  // they run, so that staleness cannot arise and the re-query is unneeded.
+  const dismissToRun = limit === null ? dismissIds : dismissIds.slice(0, limit);
+  console.log('');
+  console.log(`dismissing ${dismissToRun.length} false positives...`);
+  let dismissed = 0;
+  for (const id of dismissToRun) {
+    const res = await fetch(`${BASE_URL}/api/admin/duplicates`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-secret': secret },
+      body: JSON.stringify({
+        id,
+        status: 'dismissed',
+        reviewedBy: 'merge-duplicate-authors script',
+        notes: 'Not duplicates: degenerate name or a high-confidence false positive',
+      }),
+    });
+    if (!res.ok) {
+      // Stop rather than plough on: a systematic failure would otherwise
+      // repeat thousands of times.
+      console.error(`dismiss failed for ${id}: ${res.status}`);
+      console.error(`stopped after ${dismissed} successful dismissals`);
+      process.exitCode = 1;
+      return;
+    }
+    dismissed++;
+  }
+  console.log(`dismissed ${dismissed}`);
+
   const toRun = limit === null ? plans : plans.slice(0, limit);
   console.log('');
-  console.log(`executing ${toRun.length} merges in batches of ${BATCH_SIZE}...`);
+  console.log(`executing ${toRun.length} merges serially, progress every ${PROGRESS_EVERY}...`);
 
   let done = 0;
   for (const plan of toRun) {
@@ -325,47 +458,11 @@ async function main(): Promise<void> {
     }
 
     done++;
-    if (done % BATCH_SIZE === 0) {
+    if (done % PROGRESS_EVERY === 0) {
       console.log(`  ${done}/${toRun.length}`);
     }
   }
   console.log(`merged ${done} clusters`);
-
-  // The merge cascade above (src/app/api/admin/duplicates/merge/route.ts)
-  // flips every still-pending similarity that touches a merged author to
-  // 'merged', regardless of confidence or cluster membership. Re-query
-  // rather than reuse the pre-execute `dismissIds` snapshot, so anything the
-  // cascade already resolved is naturally excluded -- it is no longer
-  // 'pending' -- instead of being overwritten back to 'dismissed' below.
-  const freshPending = await fetchPendingSimilarities();
-  const plannedDismissIds = new Set(dismissIds);
-  // Still-pending AND part of this run's plan. The freshness check drops ids
-  // the merge cascade already resolved to 'merged'; the plan check drops rows
-  // that appeared after the TSV was written, which no human has reviewed.
-  const freshDismissIds = computeDismissIds(freshPending).filter(id => plannedDismissIds.has(id));
-  const dismissToRun = limit === null ? freshDismissIds : freshDismissIds.slice(0, limit);
-
-  console.log(`dismissing ${dismissToRun.length} false positives...`);
-  let dismissed = 0;
-  for (const id of dismissToRun) {
-    const res = await fetch(`${BASE_URL}/api/admin/duplicates`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'x-secret': secret },
-      body: JSON.stringify({
-        id,
-        status: 'dismissed',
-        reviewedBy: 'merge-duplicate-authors script',
-        notes: 'Not duplicates: degenerate name, mojibake, or distinct transliterated authors',
-      }),
-    });
-    if (!res.ok) {
-      console.error(`dismiss failed for ${id}: ${res.status}`);
-      process.exitCode = 1;
-      return;
-    }
-    dismissed++;
-  }
-  console.log(`dismissed ${dismissed}`);
 }
 
 main()

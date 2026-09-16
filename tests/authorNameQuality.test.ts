@@ -27,6 +27,19 @@ describe('scoreNameQuality', () => {
         better('Robert McCammon', 'robert mccammon');
     });
 
+    it('penalizes a single shouty token even when the rest of the name is normal case', () => {
+        better('Stephen King', 'Stephen KING');
+        better('Debbie Macomber', 'Debbie MACOMBER');
+        // The suffix guard must not be eaten by the new per-token rule.
+        better('Jane Doe PhD', 'Jane Doe Phd');
+    });
+
+    it('only treats a credential/suffix as such after the first token', () => {
+        // "Md" leading a name is the given name Muhammad, not the credential.
+        better('Md Anwar Hossain', 'MD Anwar Hossain');
+        better('John J. Ratey MD', 'John J. Ratey Md');
+    });
+
     it('prefers a capital after a Celtic prefix', () => {
         better('Robert McCammon', 'Robert Mccammon');
         better('Anne O\'Brien', 'Anne O\'brien');
