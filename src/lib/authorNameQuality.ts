@@ -34,6 +34,17 @@ const CANONICAL_SUFFIXES = new Map<string, string>([
 ]);
 
 /**
+ * Nobiliary and toponymic particles. Convention lowercases these mid-name --
+ * `van Gelder`, `von Tischendorf`, `da Silva`, `de la Boetie` -- but the
+ * title-case bonus below rewards capitalizing every token, so without this
+ * the mangled form wins. A production dry run had 45 clusters turning on it.
+ */
+const PARTICLES = new Set([
+    'van', 'von', 'der', 'den', 'de', 'del', 'della', 'da', 'das', 'dos',
+    'di', 'du', 'ter', 'ten', 'zu', 'le', 'la', 'lo',
+]);
+
+/**
  * An unspaced run of two or more capitalized initials, each followed by a
  * period: "C.S.", "J.R.R.", "P.D.". Uppercase-only is deliberate: it makes
  * "P.D." score above "P.d.", and "C.S." above "C.s.".
@@ -112,10 +123,36 @@ export function scoreNameQuality(name: string): number {
         }
     }
 
-    // Every alphabetic token starting with a capital. Deliberately does not
-    // require the remainder to be lowercase: McCammon and O'Brien are correct.
-    if (tokens.length > 0 && tokens.every(t => t[0] === t[0].toUpperCase())) {
+    // A token is an internal particle -- a nobiliary/toponymic particle
+    // (see PARTICLES) that is neither the first nor the last token -- when
+    // its index falls strictly inside the name. A leading particle is a
+    // legitimate surname-first capital ("Van Gogh" as a listing, "De La
+    // Cruz, Melissa"), and a trailing one is not a particle at all.
+    const isInternalParticle = (token: string, index: number): boolean =>
+        index >= 1 && index <= tokens.length - 2 && PARTICLES.has(token.toLowerCase());
+
+    // Every alphabetic token starting with a capital, except an internal
+    // particle, which is conventionally lowercased mid-name and scored on
+    // its own casing below. Deliberately does not require the remainder to
+    // be lowercase: McCammon and O'Brien are correct.
+    if (tokens.length > 0
+        && tokens.every((t, i) => isInternalParticle(t, i) || t[0] === t[0].toUpperCase())) {
         score += 2;
+    }
+
+    // An internal particle's own casing: lowercase is the convention
+    // ("van Gelder"), so reward it; a capitalized one is the mistake this
+    // rule exists to stop rewarding via the title-case bonus above.
+    for (let i = 1; i <= tokens.length - 2; i++) {
+        const token = tokens[i];
+        if (!PARTICLES.has(token.toLowerCase())) {
+            continue;
+        }
+        if (token === token.toLowerCase()) {
+            score += 1;
+        } else if (token[0] === token[0].toUpperCase()) {
+            score -= 1;
+        }
     }
 
     for (let i = 1; i < tokens.length; i++) {

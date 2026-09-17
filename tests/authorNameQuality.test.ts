@@ -87,4 +87,38 @@ describe('scoreNameQuality', () => {
         better('Henry Ford VIII', 'Henry Ford Viii');
         better('Jane Doe MFA', 'Jane Doe Mfa');
     });
+
+    it('prefers a lowercase nobiliary/toponymic particle over a capitalized one', () => {
+        // A production dry run of the duplicate-author merge found 45
+        // clusters where capitalizing the particle would have won, against
+        // only 2 the other way -- this is the fix for that lopsided result.
+        better('Chris den Besten', 'Chris Den Besten');
+        better('Constantin von Tischendorf', 'Constantin Von Tischendorf');
+        better('Claiton Marcio da Silva', 'Claiton Marcio Da Silva');
+        better('F. K. M. van Nispen', 'F. K. M. Van Nispen');
+        better('Fernando del Paso Morante', 'Fernando Del Paso Morante');
+        better('Jair Teixeira dos Reis', 'Jair Teixeira Dos Reis');
+        better('Institut Charles de Gaulle', 'Institut Charles De Gaulle');
+    });
+
+    it('prefers lowercasing every particle in a multi-particle name, in any partial mix', () => {
+        better('Etienne de la Boetie', 'Etienne De La Boetie');
+        better('Etienne de la Boetie', 'Etienne de La Boetie');
+        better('Etienne de la Boetie', 'Etienne De LA Boetie');
+    });
+
+    it('does not treat a leading or trailing particle-like token as a particle', () => {
+        // "Van" leads here, as in a surname-first listing -- not an
+        // internal particle, so it must score exactly as it did before the
+        // particle rule existed.
+        assert.equal(scoreNameQuality('Van Gogh'), 2);
+    });
+
+    it('does not let the particle rule rescue an all-lowercase name', () => {
+        // "Le" is capitalized correctly here as part of the surname "Le
+        // Roy" -- the particle rule dings it, but the all-lowercase
+        // variant's existing penalty is still larger, so the correctly
+        // typed name still wins.
+        better('Eugene Le Roy', 'eugene le roy');
+    });
 });
