@@ -114,6 +114,17 @@ describe('scoreNameQuality', () => {
         assert.equal(scoreNameQuality('Van Gogh'), 2);
     });
 
+    it('caps the multi-particle casing contribution so it cannot outweigh the title-case bonus', () => {
+        // A production dry run caught this: with two particles scored
+        // independently, "van der kwast" (all lowercase, including the
+        // surname) out-scored both "Van Der Kwast" (title-cased particles)
+        // and the correct "van der Kwast" -- capping the contribution to a
+        // single +-1 per name, rather than per particle, fixes it.
+        better('Jennifer van der Kwast', 'Jennifer van der kwast');
+        better('Jennifer van der Kwast', 'Jennifer Van Der Kwast');
+        better('G. W. van der Meiden', 'G. W. Van Der Meiden');
+    });
+
     it('does not let the particle rule rescue an all-lowercase name', () => {
         // "Le" is capitalized correctly here as part of the surname "Le
         // Roy" -- the particle rule dings it, but the all-lowercase

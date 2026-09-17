@@ -143,14 +143,23 @@ export function scoreNameQuality(name: string): number {
     // An internal particle's own casing: lowercase is the convention
     // ("van Gelder"), so reward it; a capitalized one is the mistake this
     // rule exists to stop rewarding via the title-case bonus above.
+    //
+    // Capped to a single +-1 for the whole name, rather than accumulated
+    // per particle: a name with two particles could otherwise earn +2 here,
+    // enough to outweigh the flat +2 title-case bonus lost by capitalizing
+    // both -- which let an all-lowercase surname (earning the cap but no
+    // title-case bonus of its own) beat a properly capitalized one.
+    const internalParticles: string[] = [];
     for (let i = 1; i <= tokens.length - 2; i++) {
         const token = tokens[i];
-        if (!PARTICLES.has(token.toLowerCase())) {
-            continue;
+        if (PARTICLES.has(token.toLowerCase())) {
+            internalParticles.push(token);
         }
-        if (token === token.toLowerCase()) {
+    }
+    if (internalParticles.length > 0) {
+        if (internalParticles.every(token => token === token.toLowerCase())) {
             score += 1;
-        } else if (token[0] === token[0].toUpperCase()) {
+        } else if (internalParticles.some(token => token[0] === token[0].toUpperCase())) {
             score -= 1;
         }
     }
