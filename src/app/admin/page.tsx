@@ -12,6 +12,11 @@ const SECTIONS = [
         title: 'Search Rate Limits',
         description: 'Clients that have reached ISBNdb, and their token buckets.',
     },
+    {
+        href: '/admin/isbndb',
+        title: 'ISBNdb Direct',
+        description: 'Run a search or ISBN lookup with the rate limiter bypassed.',
+    },
 ];
 
 export default function AdminIndexPage() {

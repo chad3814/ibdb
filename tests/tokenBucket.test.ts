@@ -178,13 +178,18 @@ describe('GLOBAL_BUCKET', () => {
         );
     });
 
-    it('leaves margin rather than spending the quota exactly', () => {
-        // Daily usage swings 11,900-15,000 day to day, so aiming at exactly
-        // 15,000 would clip the ceiling on the volatile days.
-        assert.ok(
-            GLOBAL_BUCKET.capacity + GLOBAL_BUCKET.refillPerDay < ISBNDB_DAILY_QUOTA,
-            'ceiling should sit below the quota, not on it'
-        );
+    it('leaves only a small margin below the quota', () => {
+        // The margin exists for one reason: takeToken fails open, so a database
+        // blip lets requests through without spending a token and real spend can
+        // exceed the ceiling. It is NOT for demand volatility -- a bucket cannot
+        // release more than its own ceiling, so volatility argues for nothing.
+        //
+        // Upper bound so a future edit cannot quietly re-inflate it: unused
+        // margin is paid-for quota nobody gets to use.
+        const ceiling = GLOBAL_BUCKET.capacity + GLOBAL_BUCKET.refillPerDay;
+        const margin = ISBNDB_DAILY_QUOTA - ceiling;
+        assert.ok(margin > 0, 'ceiling must sit below the quota, not on it');
+        assert.ok(margin <= 200, `margin of ${margin} wastes quota; fail-open leakage needs far less`);
     });
 
     it('still allows most of a day of real traffic', () => {

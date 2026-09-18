@@ -51,9 +51,19 @@ export const SEARCH_BUCKET: BucketConfig = {
  * Without this guard nothing notices until ISBNdb starts refusing calls -- which
  * it did, every day from 2026-08-19 to 2026-09-08, pinned flat at 15,000.
  *
- * capacity + refillPerDay = 14,000, deliberately under the 15,000 quota: daily
- * usage swings between ~11,900 and 15,000, so aiming at the ceiling exactly
- * would clip it on the volatile days.
+ * capacity + refillPerDay = 14,900 against the 15,000 quota. The 100 of margin
+ * exists for exactly one reason: takeToken fails open, so a database blip lets
+ * requests through without spending a token and real spend can drift above the
+ * ceiling. It is deliberately small -- unused margin is paid-for quota nobody
+ * gets to use.
+ *
+ * An earlier version left 1,000 and justified it as headroom for day-to-day
+ * demand volatility. That was wrong: a bucket cannot release more than its own
+ * ceiling, so how much demand varies has no bearing on where the ceiling goes.
+ *
+ * Capacity is the smaller share on purpose. For a site-wide budget the
+ * sustained rate is what serves users; a bigger instantaneous burst just
+ * front-loads the same day's spend into the first hour.
  *
  * A rolling bucket is safe against ISBNdb's calendar-day reset, and
  * conservatively so: no rolling 24h window can release more than
@@ -61,8 +71,8 @@ export const SEARCH_BUCKET: BucketConfig = {
  * happens to fall.
  */
 export const GLOBAL_BUCKET: BucketConfig = {
-    capacity: 1_000,
-    refillPerDay: 13_000,
+    capacity: 900,
+    refillPerDay: 14_000,
 };
 
 /**

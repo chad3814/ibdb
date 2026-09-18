@@ -56,3 +56,39 @@ export function takeSearchToken(clientHash: string, now: Date = new Date()): Pro
 export function takeGlobalToken(now: Date = new Date()): Promise<BucketDecision> {
     return takeToken(GLOBAL_BUDGET_KEY, GLOBAL_BUCKET, now);
 }
+
+/**
+ * What a caller must supply to spend ISBNdb quota. Injected rather than reached
+ * for, so a code path that reaches ISBNdb has to say which budget it spends
+ * from -- and an unlimited one has to say so out loud.
+ */
+export type SpendToken = () => Promise<BucketDecision>;
+
+/**
+ * The full check for one request that is about to reach ISBNdb: the client's
+ * own allowance, then the site-wide budget.
+ *
+ * Lives here rather than being inlined per route so the three call sites cannot
+ * drift apart on the ordering. Per-client first is deliberate: a client already
+ * being refused must not also spend site budget on a request we reject anyway.
+ */
+export async function spendIsbndbToken(clientHash: string, now: Date = new Date()): Promise<BucketDecision> {
+    const perClient = await takeToken(clientHash, SEARCH_BUCKET, now);
+    if (!perClient.allowed) {
+        return perClient;
+    }
+    return takeToken(GLOBAL_BUDGET_KEY, GLOBAL_BUCKET, now);
+}
+
+/**
+ * Spends nothing and never refuses, for the admin page that deliberately
+ * bypasses the limiter.
+ *
+ * Note what this costs: admin lookups reach ISBNdb without debiting the
+ * site-wide budget, so the 14,900 ceiling stops being a complete account of
+ * real spend while the page is in use. That is the same shape of gap that made
+ * the unlimited ISBN path invisible in the first place, so admin requests are
+ * at least logged by their routes even though they are not metered.
+ */
+export const UNLIMITED_ISBNDB_BUDGET: SpendToken = () =>
+    Promise.resolve({ allowed: true, tokens: Number.POSITIVE_INFINITY, retryAfterSeconds: 0 });

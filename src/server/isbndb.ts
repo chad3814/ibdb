@@ -6,6 +6,7 @@ import { Book, Edition } from "../../prisma/client";
 import { addBookToQueue } from "./hardcoverQueue";
 import { NEGATIVE_CACHE_TTL_MS, isFresh } from "@/lib/cacheTtl";
 import { isPossibleIsbn13 } from "@/lib/isbn";
+import type { SpendToken } from "./searchRateLimit";
 
 type IsbnDbSearchBook = {
     title: string;
@@ -396,11 +397,20 @@ async function recordIsbnMiss(isbn13: string): Promise<void> {
     }
 }
 
-export async function lookupByIsbn13(isbn13: string): Promise<FullBook|null> {
+/** What an ISBN lookup can come back with, now that it can be refused. */
+export type IsbnLookupResult =
+    | { kind: 'found'; book: FullBook }
+    | { kind: 'not-found' }
+    | { kind: 'throttled'; retryAfterSeconds: number };
+
+export async function lookupByIsbn13(
+    isbn13: string,
+    spendToken: SpendToken
+): Promise<IsbnLookupResult> {
     // Input that cannot be an ISBN-13 cannot be in ISBNdb either. Reject it
     // before it costs a request; `/isbn/[isbn]` is public and crawled.
     if (!isPossibleIsbn13(isbn13)) {
-        return null;
+        return { kind: 'not-found' };
     }
 
     const edition = await db.edition.findFirst({
@@ -417,12 +427,15 @@ export async function lookupByIsbn13(isbn13: string): Promise<FullBook|null> {
 
     if (edition) {
         const book = edition.book;
-        return Object.assign(book, {
-            image: edition.image ?? book.editions[0]?.image ?? null,
-            publicationDate: edition.publicationDate ?? null,
-            publisher: edition.publisher ?? null,
-            binding: edition.binding as Binding,
-        });
+        return {
+            kind: 'found',
+            book: Object.assign(book, {
+                image: edition.image ?? book.editions[0]?.image ?? null,
+                publicationDate: edition.publicationDate ?? null,
+                publisher: edition.publisher ?? null,
+                binding: edition.binding as Binding,
+            }),
+        };
     }
 
     // ISBNdb told us recently that this ISBN does not exist. Believe it rather
@@ -433,12 +446,22 @@ export async function lookupByIsbn13(isbn13: string): Promise<FullBook|null> {
         },
     });
     if (miss && isFresh(miss.updatedAt, NEGATIVE_CACHE_TTL_MS)) {
-        return null;
+        return { kind: 'not-found' };
     }
 
     if (!process.env.ISBNDB_KEY) {
         throw new Error('Missing ISBNDB Key');
     }
+    // Everything above was free: a malformed ISBN, a book we already hold, or
+    // one ISBNdb recently told us does not exist. Only from here does the
+    // request cost quota, so this is where the budget is spent -- charging
+    // earlier would throttle browsing of books we already have, which is
+    // exactly what the search path is careful not to do.
+    const budget = await spendToken();
+    if (!budget.allowed) {
+        return { kind: 'throttled', retryAfterSeconds: budget.retryAfterSeconds };
+    }
+
     const headers = new Headers();
     headers.set('Authorization', process.env.ISBNDB_KEY);
     const url = new URL(`https://api2.isbndb.com/books/${encodeURIComponent(isbn13)}`);
@@ -451,14 +474,14 @@ export async function lookupByIsbn13(isbn13: string): Promise<FullBook|null> {
         console.error(`failed to lookup isbn ISBNDb ${url}, ${res.status} - ${res.statusText}`);
         if (res.status === 404) {
             await recordIsbnMiss(isbn13);
-            return null; // no book found
+            return { kind: 'not-found' };
         }
         throw new Error('ISBNDb Error');
     }
     const isbnBook = await res.json() as IsbnDbIsbnLookupRes;
     if (!isbnBook?.book) {
         await recordIsbnMiss(isbn13);
-        return null; // no book found in response
+        return { kind: 'not-found' };
     }
 
     const book = await saveIsbndbBook(isbnBook.book);
@@ -470,5 +493,5 @@ export async function lookupByIsbn13(isbn13: string): Promise<FullBook|null> {
             },
         });
     }
-    return book;
+    return { kind: 'found', book };
 }

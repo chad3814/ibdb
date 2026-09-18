@@ -13,3 +13,18 @@ export async function hashClientIp(ip: string): Promise<string> {
         .map(byte => byte.toString(16).padStart(2, '0'))
         .join('');
 }
+
+/**
+ * The client hash for a request, from whichever proxy header carries the real
+ * address.
+ *
+ * Shared by every path that spends ISBNdb quota -- search, the ISBN JSON
+ * endpoint and the ISBN page -- so they cannot disagree about who a client is
+ * and hand one visitor two separate allowances.
+ */
+export async function clientHashFromHeaders(headers: Headers): Promise<string> {
+    const ip = headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        ?? headers.get('x-real-ip')
+        ?? 'unknown';
+    return hashClientIp(ip);
+}
