@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/server/db';
-import { isAdminAuthorized } from '@/lib/adminAuth';
 import { GLOBAL_BUDGET_KEY } from '@/server/searchRateLimit';
 
 type Params = {
@@ -18,11 +17,10 @@ type Result =
  * full, so this is a reset rather than a permanent exemption -- a client that
  * keeps spending will be throttled again.
  */
-export async function DELETE(req: NextRequest, { params }: Params): Promise<NextResponse<Result>> {
-    if (!isAdminAuthorized(req.headers.get('x-secret'), process.env.ADMIN_SECRET)) {
-        return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
-    }
-
+// No auth check here on purpose -- the middleware gates it, and accepts the
+// cookie as well as the header. Re-checking the header alone here made the
+// Reset button return 401, since the page sends only the cookie.
+export async function DELETE(_req: Request, { params }: Params): Promise<NextResponse<Result>> {
     const { clientHash } = await params;
 
     // Deleting the global row would make the next search find no state and

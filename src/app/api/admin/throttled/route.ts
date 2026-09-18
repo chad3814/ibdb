@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/server/db';
-import { isAdminAuthorized } from '@/lib/adminAuth';
 import { GLOBAL_BUCKET, SEARCH_BUCKET, nextTokenAt, refillTokens } from '@/lib/tokenBucket';
 import { GLOBAL_BUDGET_KEY } from '@/server/searchRateLimit';
 
@@ -35,11 +34,12 @@ type Result =
       }
     | { status: 'error'; message: string };
 
-export async function GET(req: NextRequest): Promise<NextResponse<Result>> {
-    if (!isAdminAuthorized(req.headers.get('x-secret'), process.env.ADMIN_SECRET)) {
-        return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
-    }
-
+// No auth check here on purpose. The middleware gates every /api/admin/ path
+// (see requiresAdminAuth) and accepts either the x-secret header or the
+// admin_session cookie. This handler used to re-check the header alone, which
+// rejected the cookie the admin page actually sends -- the page saw a 401,
+// redirected to sign-in, came back authenticated, and looped forever.
+export async function GET(): Promise<NextResponse<Result>> {
     const now = new Date();
     // Most recently active first: the interesting client is the one spending
     // right now. The take() has to use the same ordering, or it would truncate
