@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/server/db';
 import { isAdminAuthorized } from '@/lib/adminAuth';
+import { GLOBAL_BUDGET_KEY } from '@/server/searchRateLimit';
 
 type Params = {
     params: Promise<{
@@ -23,6 +24,19 @@ export async function DELETE(req: NextRequest, { params }: Params): Promise<Next
     }
 
     const { clientHash } = await params;
+
+    // Deleting the global row would make the next search find no state and
+    // start from a full bucket, handing out another `capacity` requests on top
+    // of the day's budget -- straight past the ISBNdb quota this exists to
+    // protect. Resetting a client is a reset; resetting this would be an
+    // exemption from the quota itself.
+    if (clientHash === GLOBAL_BUDGET_KEY) {
+        return NextResponse.json({
+            status: 'error',
+            message: 'The site-wide ISBNdb budget cannot be reset: it would allow spending past the daily quota.',
+        }, { status: 400 });
+    }
+
     const { count } = await db.searchRateLimit.deleteMany({ where: { clientHash } });
     console.log(`admin reset rate limit for client=${clientHash} rows=${count}`);
 

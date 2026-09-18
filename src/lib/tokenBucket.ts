@@ -23,17 +23,46 @@ export type BucketDecision = {
 /**
  * Per-client limit for searches that reach ISBNdb.
  *
- * Chosen against a full day of production traffic: 18,729 misses across 387
- * clients, against a 15,000/day ISBNdb quota. Capacity 400 with 700/day refill
- * holds it to ~14,278/day and touches 10 clients; the other 377 never notice.
- *
  * Note that capacity adds to refill -- a bucket does not cap a client at
- * `refillPerDay` over a single day, it allows up to capacity + refill. That is
- * why the sustained figure is 700 rather than the 800 a hard daily cap allows.
+ * `refillPerDay` over a single day, it allows up to capacity + refill.
+ *
+ * Retuned from 700/day once the log drain showed what the first guess actually
+ * did. Measured over a full day: 353 clients, 15,131 misses, 6,603 refused,
+ * 8,528 actually spent against the 15,000/day quota -- so 4,969/day of quota
+ * went unused while five clients sat pinned at ~700/day and were refused
+ * 42-80% of their requests. 1,200/day hands most of that headroom back;
+ * satisfying their full demand would need ~3,500 and put the site at 15,131,
+ * over the quota with nothing left for the growth that is actually happening.
  */
 export const SEARCH_BUCKET: BucketConfig = {
     capacity: 400,
-    refillPerDay: 700,
+    refillPerDay: 1_200,
+};
+
+/**
+ * Site-wide ceiling on searches that reach ISBNdb, spent from one shared
+ * bucket rather than per client.
+ *
+ * Per-client limits cannot protect the quota. They stop one client hogging it,
+ * but 353 clients each comfortably inside their own limit still add up, and
+ * that is exactly where the growth is: over 17 hours the site's spend rose
+ * 8,528 -> 10,031/day while the refusal count stayed flat at ~6,600, so every
+ * additional request came from a client the per-client limiter never touches.
+ * Without this guard nothing notices until ISBNdb starts refusing calls -- which
+ * it did, every day from 2026-08-19 to 2026-09-08, pinned flat at 15,000.
+ *
+ * capacity + refillPerDay = 14,000, deliberately under the 15,000 quota: daily
+ * usage swings between ~11,900 and 15,000, so aiming at the ceiling exactly
+ * would clip it on the volatile days.
+ *
+ * A rolling bucket is safe against ISBNdb's calendar-day reset, and
+ * conservatively so: no rolling 24h window can release more than
+ * capacity + refillPerDay, so no calendar day can either, wherever the reset
+ * happens to fall.
+ */
+export const GLOBAL_BUCKET: BucketConfig = {
+    capacity: 1_000,
+    refillPerDay: 13_000,
 };
 
 /**

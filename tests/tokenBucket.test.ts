@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEARCH_BUCKET, consumeToken, nextTokenAt, refillTokens } from '../src/lib/tokenBucket';
+import { GLOBAL_BUCKET, SEARCH_BUCKET, consumeToken, nextTokenAt, refillTokens } from '../src/lib/tokenBucket';
+import type { BucketConfig, BucketState } from '../src/lib/tokenBucket';
 
 const cfg = { capacity: 10, refillPerDay: 86_400 }; // 1 token/second, easy arithmetic
 const t0 = new Date('2026-09-08T12:00:00Z');
@@ -72,10 +73,14 @@ describe('consumeToken', () => {
         assert.equal(allowed, cfg.capacity);
     });
 
-    it('is configured for 400 burst and 700 a day', () => {
-        // Measured against real traffic: holds ~14,278/day against a 15,000 cap.
+    it('is configured for 400 burst and 1,200 a day', () => {
+        // Retuned once the log drain showed the first guess's real effect: it
+        // was predicted to hold ~14,278/day, and actually held 8,528, leaving
+        // 4,969/day of quota unused while refusing 6,603 requests. Do not move
+        // these without re-measuring; the behavioural consequences are asserted
+        // in the SEARCH_BUCKET and GLOBAL_BUCKET blocks below.
         assert.equal(SEARCH_BUCKET.capacity, 400);
-        assert.equal(SEARCH_BUCKET.refillPerDay, 700);
+        assert.equal(SEARCH_BUCKET.refillPerDay, 1_200);
     });
 });
 
@@ -126,5 +131,82 @@ describe('refillTokens', () => {
 
         assert.ok(refillTokens(state, cfg, t0) < 1);
         assert.notEqual(nextTokenAt(state, cfg, t0), null);
+    });
+});
+
+/**
+ * ISBNdb Premium's hard ceiling. Past it ISBNdb refuses the call, which is
+ * worse than refusing it ourselves -- we pay the round trip and the user still
+ * gets nothing. Confirmed against the account page: "Premium (15,000/daily)".
+ */
+const ISBNDB_DAILY_QUOTA = 15_000;
+
+/**
+ * Spends against a bucket as hard as it will allow for `hours`, and reports how
+ * many requests it let through. Starts full, which is the worst case for a
+ * ceiling: a bucket releases capacity + refillPerDay over a day, not merely
+ * refillPerDay.
+ */
+function drainUnderUnlimitedDemand(config: BucketConfig, hours: number): number {
+    let state: BucketState = { tokens: config.capacity, updatedAt: t0 };
+    let allowed = 0;
+    for (let second = 0; second < hours * 3600; second++) {
+        const now = at(second);
+        // Keep asking until refused, so the bucket is the only thing limiting.
+        for (;;) {
+            const decision = consumeToken(state, config, now);
+            state = { tokens: decision.tokens, updatedAt: now };
+            if (!decision.allowed) {
+                break;
+            }
+            allowed++;
+        }
+    }
+    return allowed;
+}
+
+describe('GLOBAL_BUCKET', () => {
+    it('holds the whole site under the ISBNdb daily quota under unlimited demand', () => {
+        // The property that matters. Per-client limits cannot guarantee this:
+        // 353 clients each under their own limit can still exceed the quota
+        // together, and the observed growth is entirely in clients that never
+        // reach their per-client limit.
+        const spent = drainUnderUnlimitedDemand(GLOBAL_BUCKET, 24);
+        assert.ok(
+            spent <= ISBNDB_DAILY_QUOTA,
+            `global bucket released ${spent} in 24h, over the ${ISBNDB_DAILY_QUOTA} quota`
+        );
+    });
+
+    it('leaves margin rather than spending the quota exactly', () => {
+        // Daily usage swings 11,900-15,000 day to day, so aiming at exactly
+        // 15,000 would clip the ceiling on the volatile days.
+        assert.ok(
+            GLOBAL_BUCKET.capacity + GLOBAL_BUCKET.refillPerDay < ISBNDB_DAILY_QUOTA,
+            'ceiling should sit below the quota, not on it'
+        );
+    });
+
+    it('still allows most of a day of real traffic', () => {
+        // Measured spend was ~10,000/day; the guard must not bite at that level
+        // or it would throttle traffic the quota can afford.
+        const spent = drainUnderUnlimitedDemand(GLOBAL_BUCKET, 24);
+        assert.ok(spent > 12_000, `global ceiling ${spent} is too tight for observed demand`);
+    });
+});
+
+describe('SEARCH_BUCKET', () => {
+    it('lets one saturated client through far more than the old 700 a day', () => {
+        // Five heavy clients were pinned at ~700/day while 4,969/day of quota
+        // went unused. This is the headroom being handed back to them.
+        const spent = drainUnderUnlimitedDemand(SEARCH_BUCKET, 24);
+        assert.ok(spent > 1_500, `a saturated client got only ${spent}/day`);
+    });
+
+    it('still caps a single client well below the global ceiling', () => {
+        // No one client may consume the whole site's quota.
+        const perClient = SEARCH_BUCKET.capacity + SEARCH_BUCKET.refillPerDay;
+        const global = GLOBAL_BUCKET.capacity + GLOBAL_BUCKET.refillPerDay;
+        assert.ok(perClient < global / 3, 'one client should not be able to take a third of the day');
     });
 });

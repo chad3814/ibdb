@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import type { ThrottledClient } from '@/app/api/admin/throttled/route';
+import type { GlobalBudget, ThrottledClient } from '@/app/api/admin/throttled/route';
 
 const REFRESH_MS = 30_000;
 
@@ -23,6 +23,7 @@ function relative(iso: string|null): string {
 export default function ThrottledPage() {
     const [clients, setClients] = useState<ThrottledClient[]>([]);
     const [limits, setLimits] = useState<{ capacity: number; refillPerDay: number }|null>(null);
+    const [budget, setBudget] = useState<GlobalBudget|null>(null);
     const [error, setError] = useState<string|null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -42,9 +43,11 @@ export default function ThrottledPage() {
             }
             setClients(data.clients);
             setLimits({ capacity: data.capacity, refillPerDay: data.refillPerDay });
+            setBudget(data.globalBudget ?? null);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load');
             setClients([]);
+            setBudget(null);
         } finally {
             setLoading(false);
         }
@@ -90,6 +93,32 @@ export default function ThrottledPage() {
                         {error}
                     </div>
                 )}
+
+                {/* The site-wide budget, not a client. Shown separately because it is
+                    scored against its own capacity and refill, and because it has no
+                    Reset action -- clearing it would allow spending past the ISBNdb
+                    daily quota it exists to protect. */}
+                <div className={`mb-6 rounded-lg border p-4 shadow ${budget?.exhausted ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'}`}>
+                    <div className="flex items-baseline justify-between">
+                        <h2 className="text-lg font-semibold text-gray-900">Site-wide ISBNdb budget</h2>
+                        {budget?.exhausted
+                            ? <span className="text-sm font-semibold text-red-800">exhausted &middot; recovers {relative(budget.nextTokenAt)}</span>
+                            : <span className="text-sm text-green-800">within budget</span>}
+                    </div>
+                    {budget ? (
+                        <p className="mt-1 text-sm text-gray-700">
+                            <strong className="text-gray-900">{budget.tokens.toFixed(0)}</strong>
+                            <span className="text-gray-500"> / {budget.capacity}</span> tokens,
+                            {' '}{budget.refillPerDay.toLocaleString()}/day sustained
+                            {' '}&mdash; a ceiling of {(budget.capacity + budget.refillPerDay).toLocaleString()} in any 24h.
+                            {' '}Last spent {relative(budget.updatedAt) === 'available now' ? 'just now' : new Date(budget.updatedAt).toLocaleTimeString()}.
+                        </p>
+                    ) : (
+                        <p className="mt-1 text-sm text-gray-700">
+                            No spend recorded yet. The row is created by the first search that reaches ISBNdb.
+                        </p>
+                    )}
+                </div>
 
                 <div className="mb-4 text-sm text-gray-600">
                     {clients.length} tracked, <strong>{throttled} currently throttled</strong>
