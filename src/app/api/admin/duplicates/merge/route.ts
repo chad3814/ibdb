@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/server/db';
 import { donatedExternalIds } from '@/lib/authorMergeIds';
 
-// A 14-member cluster with 30 books can issue ~450 sequential statements in
-// this one interactive transaction -- well past Prisma's 5s default. Match
-// the precedent set for a comparable write in applyEnrichment
-// (src/server/hardcoverEnrich.ts).
-const MERGE_TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
+// Sized against the largest real merge rather than a guess. Moving the
+// 'unknown author' row's 48,322 books is ~97,000 row-writes once the inserts
+// and deletes are counted, plus index maintenance on a live primary: measured
+// at 47.7s, which blew a 30s ceiling and rolled the whole thing back with
+// P2028. 120s leaves room for that to be slower under load without letting a
+// genuinely stuck transaction sit forever.
+//
+// Prisma's default is 5s, and applyEnrichment (src/server/hardcoverEnrich.ts)
+// uses 20s; both are for far smaller writes than a fat author merge.
+const MERGE_TRANSACTION_OPTIONS = { maxWait: 15_000, timeout: 120_000 };
 
-// Matches the cron route's budget (src/app/api/cron/hardcover/route.ts):
-// the transaction above can legitimately run for tens of seconds.
-export const maxDuration = 60;
+// Has to exceed the transaction timeout above, or the request dies first and
+// the work is rolled back for nothing. 300s is the platform default ceiling.
+export const maxDuration = 300;
 
 type MergeTxResult =
   | { kind: 'already-merged' }
