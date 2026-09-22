@@ -60,11 +60,12 @@ export async function POST(request: NextRequest) {
     // produce an HTTP response directly, so the callback returns a
     // discriminated result and the outer code below translates it.
     const result = await db.$transaction(async (tx): Promise<MergeTxResult> => {
+      // Deliberately no `include: { books: true }`. The reassignment below is
+      // set-based, so nothing here needs the rows -- and loading them was its
+      // own problem: the "unknown author" row has 48,322 books, pulled into
+      // memory purely to derive ids.
       const authors = await tx.author.findMany({
         where: { id: { in: authorIds } },
-        include: {
-          books: true
-        }
       });
 
       if (authors.length !== authorIds.length) {
@@ -80,64 +81,40 @@ export async function POST(request: NextRequest) {
         return { kind: 'target-not-found' };
       }
 
-      // Get all books from authors being merged (excluding target)
       const authorsToMerge = authors.filter(a => a.id !== targetAuthorId);
-      const bookIdsToReassign = new Set<string>();
+      const loserIds = authorsToMerge.map(a => a.id);
 
-      // One set per loser, computed once, so the disconnect below only runs
-      // for a loser actually connected to the book in question instead of
-      // firing unconditionally for every loser on every book.
-      const loserBookIds = new Map<string, Set<string>>();
-      for (const author of authorsToMerge) {
-        loserBookIds.set(author.id, new Set(author.books.map(book => book.id)));
-        for (const book of author.books) {
-          bookIdsToReassign.add(book.id);
-        }
-      }
+      // Two statements, not two per book.
+      //
+      // This loop used to run per book: a findFirst to ask whether the target
+      // was already attached, an update to attach it, then an update per loser
+      // to detach. Fine for a handful; hopeless for the "unknown author" row,
+      // whose 48,322 books came to roughly 145,000 sequential statements and
+      // blew the transaction timeout every time, so that merge could not be
+      // performed at all.
+      //
+      // Raw SQL because Prisma has no bulk connect for an implicit many-to-many
+      // relation. The table and its A/B columns are generated from the Author
+      // <-> Book relation in schema.prisma and change only if that does.
+      const booksReassigned = await tx.$executeRaw`
+        INSERT INTO "_AuthorToBook" ("A", "B")
+        SELECT DISTINCT ${targetAuthorId}::text, loser."B"
+          FROM "_AuthorToBook" loser
+         WHERE loser."A" = ANY(${loserIds}::text[])
+           AND NOT EXISTS (
+             SELECT 1 FROM "_AuthorToBook" already
+              WHERE already."A" = ${targetAuthorId}::text
+                AND already."B" = loser."B"
+           )
+      `;
 
-      // Reassign books to target author
-      let booksReassigned = 0;
-      for (const bookId of bookIdsToReassign) {
-        // Check if target author is already connected to this book
-        const existingConnection = await tx.book.findFirst({
-          where: {
-            id: bookId,
-            authors: {
-              some: { id: targetAuthorId }
-            }
-          }
-        });
-
-        if (!existingConnection) {
-          // Connect the book to the target author
-          await tx.book.update({
-            where: { id: bookId },
-            data: {
-              authors: {
-                connect: { id: targetAuthorId }
-              }
-            }
-          });
-          booksReassigned++;
-        }
-
-        // Disconnect the book from the merged authors that are actually
-        // connected to it.
-        for (const author of authorsToMerge) {
-          const bookIds = loserBookIds.get(author.id) ?? new Set<string>();
-          if (!bookIds.has(bookId)) {
-            continue;
-          }
-          await tx.book.update({
-            where: { id: bookId },
-            data: {
-              authors: {
-                disconnect: { id: author.id }
-              }
-            }
-          });
-        }
-      }
+      // Every remaining link belongs to a row about to be deleted. Doing this
+      // explicitly rather than leaning on the delete's cascade keeps the
+      // reassign-then-detach order visible, and means a book is attached to the
+      // survivor before it is ever detached from a loser.
+      await tx.$executeRaw`
+        DELETE FROM "_AuthorToBook" WHERE "A" = ANY(${loserIds}::text[])
+      `;
 
       // Create merge record
       const mergeRecord = await tx.authorMerge.create({
