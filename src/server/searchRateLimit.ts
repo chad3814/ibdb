@@ -81,6 +81,36 @@ export async function spendIsbndbToken(clientHash: string, now: Date = new Date(
 }
 
 /**
+ * The budget for one ISBN lookup, with the logging that makes it measurable.
+ *
+ * Both lines deliberately reuse the strings the search path already emits, and
+ * the miss is logged BEFORE the decision, exactly as the search route does, so
+ * one formula covers every route to ISBNdb:
+ *
+ *     spend = count("isbndb miss") - count("rate limited client=")
+ *
+ * The first cut of ISBN limiting logged only refusals, which left successful
+ * ISBN spend invisible and quietly turned that formula into a search-only
+ * undercount -- the same blind spot the unmetered ISBN path had before it was
+ * limited at all. `kind=isbn` keeps the two paths separable without needing a
+ * separate string that the formula would not know about.
+ *
+ * Only called when a lookup is about to reach ISBNdb: a cached book or a fresh
+ * negative-cache entry returns before the gate, so neither is logged or
+ * charged.
+ */
+export function isbnLookupBudget(client: string, isbn: string): SpendToken {
+    return async () => {
+        console.log(`isbndb miss client=${client} kind=isbn isbn=${isbn}`);
+        const decision = await spendIsbndbToken(client);
+        if (!decision.allowed) {
+            console.log(`rate limited client=${client} kind=isbn retryAfter=${decision.retryAfterSeconds}`);
+        }
+        return decision;
+    };
+}
+
+/**
  * Spends nothing and never refuses, for the admin page that deliberately
  * bypasses the limiter.
  *

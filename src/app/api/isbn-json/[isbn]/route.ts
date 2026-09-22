@@ -2,7 +2,7 @@ import { ApiBook } from "@/api";
 import { getApiBook } from "@/apiConvert";
 import { lookupByIsbn13 } from "@/server/isbndb";
 import { clientHashFromHeaders } from "@/lib/clientHash";
-import { spendIsbndbToken } from "@/server/searchRateLimit";
+import { isbnLookupBudget } from "@/server/searchRateLimit";
 import { NextRequest, NextResponse } from "next/server";
 
 type IsbnResponseError = {
@@ -38,10 +38,9 @@ export async function GET(req: NextRequest, { params }: Params): Promise<NextRes
     // is never throttled -- the gate below is only reached when the lookup is
     // about to spend quota.
     const client = await clientHashFromHeaders(req.headers);
-    const result = await lookupByIsbn13(isbn, () => spendIsbndbToken(client));
+    const result = await lookupByIsbn13(isbn, isbnLookupBudget(client, isbn));
 
     if (result.kind === 'throttled') {
-        console.log(`isbn lookup throttled client=${client} retryAfter=${result.retryAfterSeconds}`);
         return NextResponse.json({
             status: 'error',
             message: `Rate limit exceeded, retry after ${result.retryAfterSeconds}s`,
