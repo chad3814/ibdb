@@ -413,9 +413,18 @@ export type IsbnLookupResult =
     | { kind: 'not-found' }
     | { kind: 'throttled'; retryAfterSeconds: number };
 
+export type IsbnLookupOptions = {
+    /**
+     * Ask ISBNdb even when a fresh miss says not to. For re-checking misses we
+     * no longer trust, not for serving requests.
+     */
+    recheck?: boolean;
+};
+
 export async function lookupByIsbn13(
     isbn13: string,
-    spendToken: SpendToken
+    spendToken: SpendToken,
+    { recheck = false }: IsbnLookupOptions = {}
 ): Promise<IsbnLookupResult> {
     // Input that cannot be an ISBN-13 cannot be in ISBNdb either. Reject it
     // before it costs a request; `/isbn/[isbn]` is public and crawled.
@@ -455,7 +464,7 @@ export async function lookupByIsbn13(
             isbn13,
         },
     });
-    if (miss && isFresh(miss.updatedAt, NEGATIVE_CACHE_TTL_MS)) {
+    if (miss && !recheck && isFresh(miss.updatedAt, NEGATIVE_CACHE_TTL_MS)) {
         return { kind: 'not-found' };
     }
 
