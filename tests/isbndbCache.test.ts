@@ -2,7 +2,22 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { shouldCacheSearchResult } from '../src/server/isbndb';
 import { Binding } from '../prisma/client';
-import { parseBinding } from '../src/server/isbndb';
+import { isbnLookupUrl, parseBinding } from '../src/server/isbndb';
+
+describe('isbnLookupUrl', () => {
+    it('uses the single-book endpoint, not the plural search one', () => {
+        // /books/{isbn} is the search endpoint: it answers { books: [], total: 0 }
+        // for a bare ISBN, so reading `.book` off it made every lookup a miss.
+        assert.equal(
+            isbnLookupUrl('9780140328721').href,
+            'https://api2.isbndb.com/book/9780140328721',
+        );
+    });
+
+    it('sends no search paging parameters', () => {
+        assert.equal(isbnLookupUrl('9780140328721').search, '');
+    });
+});
 
 describe('shouldCacheSearchResult', () => {
     it('caches a result we managed to save', () => {

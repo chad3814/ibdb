@@ -92,6 +92,16 @@ export function shouldCacheSearchResult(returnedByApi: number, saved: number): b
     return saved > 0 || returnedByApi === 0;
 }
 
+/**
+ * The single-book endpoint, which answers `{ book }`. Not the plural
+ * `/books/{query}`: that is the search endpoint, it answers `{ books, total }`,
+ * and it returns no hits for a bare ISBN -- so every lookup came back
+ * not-found, spent a token, and recorded a false miss.
+ */
+export function isbnLookupUrl(isbn13: string): URL {
+    return new URL(`https://api2.isbndb.com/book/${encodeURIComponent(isbn13)}`);
+}
+
 async function imageHelper(url: string): Promise<[number, number]> {
     const res = await fetch(url, { signal: AbortSignal.timeout(IMAGE_FETCH_TIMEOUT_MS) });
     if (!res.ok) {
@@ -464,7 +474,7 @@ export async function lookupByIsbn13(
 
     const headers = new Headers();
     headers.set('Authorization', process.env.ISBNDB_KEY);
-    const url = new URL(`https://api2.isbndb.com/books/${encodeURIComponent(isbn13)}`);
+    const url = isbnLookupUrl(isbn13);
     const options: RequestInit = {
         headers,
     };
